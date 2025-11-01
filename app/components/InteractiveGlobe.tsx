@@ -19,6 +19,16 @@ interface InteractiveGlobeProps {
   onLocationSelect: (location: LocationData) => void;
 }
 
+// Predefined major business hubs
+const QUICK_LOCATIONS = [
+  { name: 'New York', city: 'New York', country: 'United States', lat: 40.7128, lng: -74.0060, emoji: '🗽' },
+  { name: 'London', city: 'London', country: 'United Kingdom', lat: 51.5074, lng: -0.1278, emoji: '🇬🇧' },
+  { name: 'Tokyo', city: 'Tokyo', country: 'Japan', lat: 35.6762, lng: 139.6503, emoji: '🗼' },
+  { name: 'Singapore', city: 'Singapore', country: 'Singapore', lat: 1.3521, lng: 103.8198, emoji: '🇸🇬' },
+  { name: 'Bangalore', city: 'Bangalore', country: 'India', lat: 12.9716, lng: 77.5946, emoji: '🇮🇳' },
+  { name: 'San Francisco', city: 'San Francisco', country: 'United States', lat: 37.7749, lng: -122.4194, emoji: '🌉' },
+];
+
 export default function InteractiveGlobe({ onLocationSelect }: InteractiveGlobeProps) {
   const globeEl = useRef<any>(null);
   const [isClient, setIsClient] = useState(false);
@@ -34,6 +44,23 @@ export default function InteractiveGlobe({ onLocationSelect }: InteractiveGlobeP
       globeEl.current.controls().autoRotateSpeed = 0.5;
     }
   }, [isClient]);
+
+  const handleQuickLocationClick = (location: typeof QUICK_LOCATIONS[0]) => {
+    // Stop auto-rotation
+    if (globeEl.current) {
+      globeEl.current.controls().autoRotate = false;
+      // Optionally point camera to location
+      globeEl.current.pointOfView({ lat: location.lat, lng: location.lng, altitude: 1.5 }, 1000);
+    }
+
+    // Directly pass the location data
+    onLocationSelect({
+      lat: location.lat,
+      lng: location.lng,
+      city: location.city,
+      country: location.country,
+    });
+  };
 
   const handleGlobeClick = async (coords: any) => {
     if (!coords) return;
@@ -76,20 +103,42 @@ export default function InteractiveGlobe({ onLocationSelect }: InteractiveGlobeP
   }
 
   return (
-    <div className="relative h-[500px] w-full overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
-      <GlobeComponent
-        ref={globeEl}
-        globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
-        bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
-        backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
-        onGlobeClick={handleGlobeClick}
-        width={typeof window !== 'undefined' ? window.innerWidth * 0.9 : 800}
-        height={500}
-        atmosphereColor="lightskyblue"
-        atmosphereAltitude={0.15}
-      />
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-lg bg-black/50 px-4 py-2 text-sm text-white backdrop-blur-sm">
-        Click anywhere on the globe to explore local news and research topics
+    <div className="w-full space-y-4">
+      {/* Quick Location Cards */}
+      <div className="mb-4">
+        <p className="mb-3 text-center text-sm font-medium text-zinc-600 dark:text-zinc-400">
+          Tap a city to discover research topics
+        </p>
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:flex lg:flex-wrap lg:justify-center lg:gap-3">
+          {QUICK_LOCATIONS.map((location) => (
+            <button
+              key={location.name}
+              onClick={() => handleQuickLocationClick(location)}
+              className="flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm font-medium transition-all hover:border-zinc-900 hover:bg-zinc-50 active:scale-95 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-100 dark:hover:bg-zinc-800"
+            >
+              <span className="text-lg">{location.emoji}</span>
+              <span>{location.name}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Globe */}
+      <div className="relative h-[500px] w-full overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <GlobeComponent
+          ref={globeEl}
+          globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
+          bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+          backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
+          onGlobeClick={handleGlobeClick}
+          width={typeof window !== 'undefined' ? window.innerWidth * 0.9 : 800}
+          height={500}
+          atmosphereColor="lightskyblue"
+          atmosphereAltitude={0.15}
+        />
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-lg bg-black/50 px-4 py-2 text-xs text-white backdrop-blur-sm sm:text-sm">
+          Or click anywhere on the globe
+        </div>
       </div>
     </div>
   );
