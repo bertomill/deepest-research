@@ -9,6 +9,8 @@ import { PixelatedCanvas } from '@/components/ui/pixelated-canvas';
 import { Toast } from '@/components/ui/toast';
 import JumpingTextInstagram from '@/components/ui/jumping-text-instagram';
 import GetStartedButton from '@/components/ui/get-started-button';
+import { ShootingStars } from '@/components/ui/shooting-stars';
+import { StarsBackground } from '@/components/ui/stars-background';
 import { supabase } from '@/lib/supabase';
 
 const InteractiveGlobe = dynamic(() => import('./components/InteractiveGlobe'), {
@@ -660,13 +662,19 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
   };
 
   return (
-    <div className="min-h-screen p-8">
-      {/* Toast notification */}
-      <Toast
-        message={toastMessage}
-        isVisible={showToast}
-        onClose={() => setShowToast(false)}
-      />
+    <div className="relative min-h-screen overflow-hidden p-8">
+      {/* Shooting Stars Background */}
+      <ShootingStars className="absolute inset-0 z-0" />
+      <StarsBackground className="absolute inset-0 z-0" />
+
+      {/* Content Wrapper */}
+      <div className="relative z-10">
+        {/* Toast notification */}
+        <Toast
+          message={toastMessage}
+          isVisible={showToast}
+          onClose={() => setShowToast(false)}
+        />
 
       {/* Floating Navigation */}
       <nav className="fixed left-1/2 top-4 z-50 w-[calc(100%-2rem)] max-w-fit -translate-x-1/2">
@@ -1702,6 +1710,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
             </div>
           </>
         )}
+      </div>
       </div>
     </div>
   );
