@@ -97,6 +97,7 @@ Please use this current web information to provide an up-to-date, accurate answe
       // Query all models in parallel and stream results as they come in
       const responsePromises = models.map(async ({ name, model }) => {
         try {
+          console.log(`Starting query for ${name}`);
           const result = await streamText({
             model,
             prompt: enhancedPrompt,
@@ -110,9 +111,11 @@ Please use this current web information to provide an up-to-date, accurate answe
             sendEvent('model-chunk', { name, chunk });
           }
 
+          console.log(`Completed query for ${name}, text length: ${fullText.length}`);
           sendEvent('model-complete', { name, text: fullText, error: null });
           return { name, text: fullText, error: null };
         } catch (error) {
+          console.error(`Error querying ${name}:`, error);
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           sendEvent('model-complete', { name, text: null, error: errorMessage });
           return { name, text: null, error: errorMessage };

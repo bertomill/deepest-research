@@ -669,11 +669,11 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
       />
 
       {/* Floating Navigation */}
-      <nav className="fixed left-1/2 top-4 z-50 -translate-x-1/2">
-        <div className="flex items-center justify-between gap-6 rounded-full border border-zinc-200 bg-white/90 px-6 py-3 shadow-lg backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/90">
+      <nav className="fixed left-1/2 top-4 z-50 w-[calc(100%-2rem)] max-w-fit -translate-x-1/2">
+        <div className="flex items-center justify-between gap-3 whitespace-nowrap rounded-full border border-zinc-200 bg-white/90 px-4 py-3 shadow-lg backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/90 md:gap-6 md:px-6">
           {/* Logo/Brand */}
           <div className="flex items-center gap-2">
-            <span className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Deepest Research</span>
+            <span className="text-base font-bold text-zinc-900 dark:text-zinc-100 md:text-xl">Deepest Research</span>
           </div>
 
           {/* Desktop Menu - Hidden on mobile */}
