@@ -908,7 +908,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                 }
               }}
               placeholder="What would you like to research?"
-              className="w-full resize-none overflow-hidden border-b-2 border-zinc-300 bg-transparent py-4 text-3xl outline-none transition-colors focus:border-zinc-900 dark:border-zinc-700 dark:focus:border-zinc-100"
+              className="w-full resize-none overflow-hidden border-b-2 border-zinc-300 bg-transparent py-4 text-2xl outline-none transition-colors focus:border-zinc-900 dark:border-zinc-700 dark:focus:border-zinc-100 md:text-3xl"
               disabled={loading || loadingQuestions}
               rows={1}
               style={{
