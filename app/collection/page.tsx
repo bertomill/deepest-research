@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { ShootingStars } from '@/components/ui/shooting-stars';
+import { StarsBackground } from '@/components/ui/stars-background';
 
 interface SavedResearch {
   id: string;
@@ -71,8 +73,10 @@ export default function CollectionPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white p-8 dark:bg-zinc-950">
-        <div className="mx-auto max-w-7xl pt-20">
+      <div className="relative min-h-screen overflow-hidden p-8">
+        <ShootingStars className="absolute inset-0 z-0" />
+        <StarsBackground className="absolute inset-0 z-0" />
+        <div className="relative z-10 mx-auto max-w-7xl pt-24">
           <p className="text-center text-zinc-500">Loading your collection...</p>
         </div>
       </div>
@@ -80,25 +84,29 @@ export default function CollectionPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white p-8 dark:bg-zinc-950">
-      {/* Navigation Header */}
-      <nav className="fixed left-0 right-0 top-0 z-50 border-b border-zinc-200 bg-white/80 backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/80">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-8 py-4">
-          <div className="flex items-center gap-2">
-            <a href="/" className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
+    <div className="relative min-h-screen overflow-hidden p-8">
+      {/* Shooting Stars Background */}
+      <ShootingStars className="absolute inset-0 z-0" />
+      <StarsBackground className="absolute inset-0 z-0" />
+
+      {/* Content Wrapper */}
+      <div className="relative z-10">
+        {/* Floating Navigation */}
+        <nav className="fixed left-1/2 top-4 z-50 w-[calc(100%-2rem)] max-w-fit -translate-x-1/2">
+          <div className="flex items-center justify-between gap-3 whitespace-nowrap rounded-full border border-zinc-200 bg-white/90 px-4 py-3 shadow-lg backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/90 md:gap-6 md:px-6">
+            <a href="/" className="text-base font-bold text-zinc-900 dark:text-zinc-100 md:text-xl">
               Deepest Research
             </a>
+            <a
+              href="/"
+              className="rounded-full px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              ← Back to Research
+            </a>
           </div>
-          <a
-            href="/"
-            className="text-sm font-medium text-zinc-700 transition-colors hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
-          >
-            ← Back to Research
-          </a>
-        </div>
-      </nav>
+        </nav>
 
-      <div className="mx-auto max-w-7xl pt-20">
+      <div className="mx-auto max-w-7xl pt-24">
         <h1 className="mb-8 text-3xl font-bold text-zinc-900 dark:text-zinc-100">My Collection</h1>
 
         {savedResearch.length === 0 ? (
@@ -185,6 +193,7 @@ export default function CollectionPage() {
             ))}
           </div>
         )}
+      </div>
       </div>
     </div>
   );
