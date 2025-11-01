@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
+import * as THREE from 'three';
 
 // Dynamically import Globe to avoid SSR issues
 const GlobeComponent = dynamic(() => import('react-globe.gl'), {
@@ -13,10 +14,22 @@ interface LocationData {
   lng: number;
   city?: string;
   country?: string;
+  planet?: string; // Added for planet identification
 }
 
 interface InteractiveGlobeProps {
   onLocationSelect: (location: LocationData) => void;
+}
+
+interface PlanetData {
+  id: string;
+  name: string;
+  emoji: string;
+  lat: number;
+  lng: number;
+  altitude: number;
+  color: string;
+  size: number;
 }
 
 // Predefined major business hubs
@@ -29,9 +42,17 @@ const QUICK_LOCATIONS = [
   { name: 'San Francisco', city: 'San Francisco', country: 'United States', lat: 37.7749, lng: -122.4194, emoji: '🌉' },
 ];
 
+// Celestial bodies for space industry research
+const PLANETS: PlanetData[] = [
+  { id: 'moon', name: 'Moon', emoji: '🌙', lat: 45, lng: 45, altitude: 0.8, color: '#cccccc', size: 0.15 },
+  { id: 'mars', name: 'Mars', emoji: '🔴', lat: -30, lng: 120, altitude: 0.9, color: '#cd5c5c', size: 0.18 },
+  { id: 'jupiter', name: 'Jupiter', emoji: '🪐', lat: 20, lng: -90, altitude: 1.0, color: '#daa520', size: 0.25 },
+];
+
 export default function InteractiveGlobe({ onLocationSelect }: InteractiveGlobeProps) {
   const globeEl = useRef<any>(null);
   const [isClient, setIsClient] = useState(false);
+  const planetMeshesRef = useRef<Map<string, any>>(new Map());
 
   useEffect(() => {
     setIsClient(true);
@@ -42,8 +63,53 @@ export default function InteractiveGlobe({ onLocationSelect }: InteractiveGlobeP
       // Auto-rotate
       globeEl.current.controls().autoRotate = true;
       globeEl.current.controls().autoRotateSpeed = 0.5;
+
+      // Add planets to the scene
+      const scene = globeEl.current.scene();
+
+      PLANETS.forEach((planet) => {
+        // Create planet mesh
+        const geometry = new THREE.SphereGeometry(planet.size, 32, 32);
+        const material = new THREE.MeshPhongMaterial({
+          color: planet.color,
+          emissive: planet.color,
+          emissiveIntensity: 0.3,
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+
+        // Convert lat/lng/altitude to 3D position
+        const phi = (90 - planet.lat) * (Math.PI / 180);
+        const theta = (planet.lng + 180) * (Math.PI / 180);
+        const radius = 100 * (1 + planet.altitude); // Earth globe radius is 100
+
+        mesh.position.set(
+          -radius * Math.sin(phi) * Math.cos(theta),
+          radius * Math.cos(phi),
+          radius * Math.sin(phi) * Math.sin(theta)
+        );
+
+        mesh.userData = { planet: planet.id, name: planet.name };
+        planetMeshesRef.current.set(planet.id, mesh);
+        scene.add(mesh);
+      });
     }
   }, [isClient]);
+
+  const handlePlanetClick = (planet: PlanetData) => {
+    // Stop auto-rotation
+    if (globeEl.current) {
+      globeEl.current.controls().autoRotate = false;
+    }
+
+    // Pass planet data as location
+    onLocationSelect({
+      lat: 0,
+      lng: 0,
+      planet: planet.id,
+      city: planet.name,
+      country: 'Space',
+    });
+  };
 
   const handleQuickLocationClick = (location: typeof QUICK_LOCATIONS[0]) => {
     // Stop auto-rotation
@@ -118,6 +184,25 @@ export default function InteractiveGlobe({ onLocationSelect }: InteractiveGlobeP
             >
               <span className="text-lg">{location.emoji}</span>
               <span>{location.name}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Planet Cards for Space Industry Research */}
+      <div className="mb-4">
+        <p className="mb-3 text-center text-sm font-medium text-zinc-600 dark:text-zinc-400">
+          Or explore space industry research
+        </p>
+        <div className="flex flex-wrap justify-center gap-3">
+          {PLANETS.map((planet) => (
+            <button
+              key={planet.id}
+              onClick={() => handlePlanetClick(planet)}
+              className="flex items-center justify-center gap-2 rounded-lg border border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50 px-4 py-3 text-sm font-medium transition-all hover:border-purple-400 hover:from-purple-100 hover:to-indigo-100 active:scale-95 dark:border-purple-800 dark:from-purple-950 dark:to-indigo-950 dark:hover:border-purple-600"
+            >
+              <span className="text-lg">{planet.emoji}</span>
+              <span>{planet.name}</span>
             </button>
           ))}
         </div>

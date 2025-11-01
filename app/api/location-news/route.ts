@@ -8,10 +8,87 @@ interface LocationData {
   lng: number;
   city?: string;
   country?: string;
+  planet?: string;
+}
+
+// Helper function for planet/space industry research
+async function handlePlanetResearch(location: LocationData) {
+  const gateway = createGateway({
+    apiKey: process.env.AI_GATEWAY_API_KEY,
+  });
+
+  const planetTopics: Record<string, string> = {
+    moon: `the Moon, including Artemis missions, lunar mining opportunities, commercial moon ventures, Chinese lunar programs, and lunar base development`,
+    mars: `Mars, including SpaceX Starship development, Mars colonization plans, NASA Mars missions, Perseverance/Ingenuity updates, and Mars resource utilization`,
+    jupiter: `Jupiter and the outer solar system, including Europa Clipper mission, Juno discoveries, potential for life on icy moons, and deep space exploration technology`,
+  };
+
+  const planetName = location.city || location.planet || 'space';
+  const topics = planetTopics[location.planet || ''] || 'space industry and exploration';
+
+  const prompt = `You are helping a professional researcher discover space industry research topics.
+
+Subject: ${planetName}
+Focus areas: ${topics}
+
+Generate 4-5 compelling professional research topics for:
+- Space industry investors and analysts
+- Aerospace companies and contractors
+- Policy makers and space agencies
+- Technology strategists
+
+Each topic should be:
+1. Specific and actionable (not vague)
+2. Tied to business opportunities, technology development, or strategic decisions
+3. Based on real developments in ${topics}
+4. Something that would provide strategic insights for professionals
+
+Format: Return ONLY a JSON array of strings, no other text. Example:
+["Analysis of SpaceX's Starship economics vs. traditional launch systems", "Investment opportunities in lunar water extraction technology"]`;
+
+  try {
+    const result = await streamText({
+      model: gateway('anthropic/claude-sonnet-4.5'),
+      prompt,
+    });
+
+    const text = await result.text;
+
+    let suggestions: string[] = [];
+    try {
+      const jsonMatch = text.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        suggestions = JSON.parse(jsonMatch[0]);
+      }
+    } catch {
+      suggestions = text
+        .split('\n')
+        .filter(line => line.trim().length > 0)
+        .map(line => line.replace(/^[-•*]\s*/, '').replace(/^["']|["']$/g, '').trim())
+        .filter(line => line.length > 10)
+        .slice(0, 5);
+    }
+
+    return Response.json({
+      location: planetName,
+      news: [], // No news for planets
+      suggestions,
+    });
+  } catch (error) {
+    return Response.json(
+      { error: 'Failed to generate suggestions' },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(req: Request) {
   const { location }: { location: LocationData } = await req.json();
+
+  // Check if this is a planet request
+  if (location.planet) {
+    return handlePlanetResearch(location);
+  }
 
   const locationName = location.city
     ? `${location.city}, ${location.country}`
