@@ -107,77 +107,86 @@ export default function InteractiveGlobe({ onLocationSelect }: InteractiveGlobeP
   return (
     <div className="w-full">
       {/* Globe with integrated labels */}
-      <div className="relative h-[600px] w-full overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <div className="relative h-[600px] w-full overflow-hidden rounded-lg border border-zinc-800 bg-black">
         <GlobeComponent
           ref={globeEl}
-          globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
+          globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
           bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
           backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
           onGlobeClick={handleGlobeClick}
           width={typeof window !== 'undefined' ? window.innerWidth * 0.9 : 800}
           height={600}
-          atmosphereColor="lightskyblue"
-          atmosphereAltitude={0.15}
-          // Add city markers only
+          atmosphereColor="rgba(100, 200, 255, 0.7)"
+          atmosphereAltitude={0.2}
+          // Add city markers with glowing effect
           htmlElementsData={QUICK_LOCATIONS}
           htmlElement={(d: any) => {
             const el = document.createElement('div');
 
-            // City label with connection point
+            // Modern glowing city marker
             el.innerHTML = `
               <div style="
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                gap: 2px;
+                gap: 3px;
               ">
                 <div style="
-                  background: rgba(0, 0, 0, 0.7);
-                  backdrop-filter: blur(6px);
+                  background: linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(147, 51, 234, 0.9));
+                  backdrop-filter: blur(10px);
                   color: white;
-                  padding: 3px 8px;
-                  border-radius: 6px;
-                  font-size: 11px;
-                  font-weight: 500;
+                  padding: 6px 12px;
+                  border-radius: 8px;
+                  font-size: 12px;
+                  font-weight: 600;
                   cursor: pointer;
-                  transition: all 0.2s;
+                  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
                   white-space: nowrap;
                   user-select: none;
+                  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
+                  border: 1px solid rgba(255, 255, 255, 0.2);
                 " class="city-label">
-                  <span style="margin-right: 3px;">${d.emoji}</span>
+                  <span style="margin-right: 4px; font-size: 14px;">${d.emoji}</span>
                   ${d.name}
                 </div>
                 <div style="
-                  width: 1px;
-                  height: 12px;
-                  background: rgba(255, 255, 255, 0.4);
+                  width: 2px;
+                  height: 16px;
+                  background: linear-gradient(to bottom, rgba(59, 130, 246, 0.8), rgba(59, 130, 246, 0.2));
                 " class="city-line"></div>
                 <div style="
-                  width: 6px;
-                  height: 6px;
-                  background: rgba(255, 255, 255, 0.9);
+                  width: 8px;
+                  height: 8px;
+                  background: radial-gradient(circle, rgba(59, 130, 246, 1) 0%, rgba(147, 51, 234, 1) 100%);
                   border-radius: 50%;
-                  box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+                  box-shadow: 0 0 20px rgba(59, 130, 246, 0.9), 0 0 40px rgba(59, 130, 246, 0.5);
+                  animation: pulse 2s ease-in-out infinite;
                 " class="city-point"></div>
               </div>
+              <style>
+                @keyframes pulse {
+                  0%, 100% { transform: scale(1); opacity: 1; }
+                  50% { transform: scale(1.2); opacity: 0.8; }
+                }
+              </style>
             `;
 
             el.addEventListener('click', () => handleQuickLocationClick(d));
             el.addEventListener('mouseenter', (e) => {
               const label = (e.currentTarget as HTMLElement).querySelector('.city-label') as HTMLElement;
               const point = (e.currentTarget as HTMLElement).querySelector('.city-point') as HTMLElement;
-              label.style.transform = 'scale(1.1)';
-              label.style.background = 'rgba(0, 0, 0, 0.9)';
-              point.style.transform = 'scale(1.3)';
-              point.style.boxShadow = '0 0 12px rgba(255, 255, 255, 0.8)';
+              label.style.transform = 'translateY(-4px) scale(1.05)';
+              label.style.boxShadow = '0 8px 30px rgba(59, 130, 246, 0.6)';
+              point.style.transform = 'scale(1.5)';
+              point.style.boxShadow = '0 0 30px rgba(59, 130, 246, 1), 0 0 60px rgba(59, 130, 246, 0.7)';
             });
             el.addEventListener('mouseleave', (e) => {
               const label = (e.currentTarget as HTMLElement).querySelector('.city-label') as HTMLElement;
               const point = (e.currentTarget as HTMLElement).querySelector('.city-point') as HTMLElement;
-              label.style.transform = 'scale(1)';
-              label.style.background = 'rgba(0, 0, 0, 0.7)';
+              label.style.transform = 'translateY(0) scale(1)';
+              label.style.boxShadow = '0 4px 20px rgba(59, 130, 246, 0.4)';
               point.style.transform = 'scale(1)';
-              point.style.boxShadow = '0 0 8px rgba(255, 255, 255, 0.6)';
+              point.style.boxShadow = '0 0 20px rgba(59, 130, 246, 0.9), 0 0 40px rgba(59, 130, 246, 0.5)';
             });
 
             el.style.pointerEvents = 'auto';
@@ -186,8 +195,8 @@ export default function InteractiveGlobe({ onLocationSelect }: InteractiveGlobeP
             return el;
           }}
         />
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 rounded-lg bg-black/50 px-4 py-2 text-xs text-white backdrop-blur-sm sm:text-sm">
-          Click on cities to explore research topics
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 rounded-xl bg-gradient-to-r from-blue-600/20 to-purple-600/20 backdrop-blur-md border border-white/10 px-6 py-3 text-sm text-white shadow-2xl">
+          <span className="font-medium">Click on cities to explore research topics</span>
         </div>
       </div>
     </div>

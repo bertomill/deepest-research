@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface SavedResearch {
   id: string;
@@ -156,7 +157,7 @@ export default function CollectionPage() {
                     <div className="rounded-lg bg-zinc-50 p-4 dark:bg-zinc-950">
                       <h3 className="mb-2 font-semibold text-zinc-900 dark:text-zinc-100">Synthesized Research</h3>
                       <div className="prose prose-zinc dark:prose-invert max-w-none text-sm">
-                        <ReactMarkdown>{research.synthesis}</ReactMarkdown>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{research.synthesis}</ReactMarkdown>
                       </div>
                     </div>
 
@@ -172,7 +173,7 @@ export default function CollectionPage() {
                             <p className="text-sm text-red-600 dark:text-red-400">{response.error}</p>
                           ) : (
                             <div className="prose prose-zinc dark:prose-invert max-w-none text-sm">
-                              <ReactMarkdown>{response.text || ''}</ReactMarkdown>
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>{response.text || ''}</ReactMarkdown>
                             </div>
                           )}
                         </div>

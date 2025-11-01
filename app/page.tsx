@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import dynamic from 'next/dynamic';
 import { GlowingEffect } from '@/components/ui/glowing-effect';
 import { PixelatedCanvas } from '@/components/ui/pixelated-canvas';
@@ -97,9 +98,6 @@ export default function Home() {
   const [userJobTitle, setUserJobTitle] = useState('');
   const [userIndustry, setUserIndustry] = useState('');
 
-  // Web search state
-  const [isSearching, setIsSearching] = useState(false);
-  const [hasWebResults, setHasWebResults] = useState(false);
 
   // Audio notification state
   const [audioEnabled, setAudioEnabled] = useState(true);
@@ -110,11 +108,18 @@ export default function Home() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
+  // Prompt preview state
+  const [showPromptPreview, setShowPromptPreview] = useState(false);
+  const [editablePrompt, setEditablePrompt] = useState('');
+
   // Model selection state
   const [selectedModels, setSelectedModels] = useState<string[]>(DEFAULT_MODELS);
   const [showBench, setShowBench] = useState(false);
   const [draggedModel, setDraggedModel] = useState<string | null>(null);
   const [draggedFromTeam, setDraggedFromTeam] = useState(false);
+
+  // Mobile menu state
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   // Ref for textarea auto-resize
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -544,7 +549,15 @@ export default function Home() {
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     } else {
-      handleStartResearch();
+      // Show prompt preview instead of starting research directly
+      const enrichedPrompt = `${query}
+
+Additional context from user:
+${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).join('\n\n')}`;
+
+      setEditablePrompt(enrichedPrompt);
+      setShowPromptPreview(true);
+      setShowQuestions(false);
     }
   };
 
@@ -557,10 +570,9 @@ export default function Home() {
   const handleStartResearch = async () => {
     setLoading(true);
     setShowQuestions(false);
+    setShowPromptPreview(false);
     setExpandedCards(new Set());
     setSynthesisExpanded(false);
-    setIsSearching(false);
-    setHasWebResults(false);
 
     // Initialize empty responses based on selected models
     const initialResponses: ModelResponse[] = selectedModels.map(modelId => ({
@@ -571,11 +583,8 @@ export default function Home() {
     setResponses(initialResponses);
     setSynthesis('');
 
-    // Build enriched prompt with Q&A context
-    const enrichedPrompt = `${query}
-
-Additional context from user:
-${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).join('\n\n')}`;
+    // Use the editable prompt (user may have modified it)
+    const enrichedPrompt = editablePrompt;
 
     try {
       const res = await fetch('/api/query', {
@@ -610,13 +619,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
           const [, event, dataStr] = eventMatch;
           const data = JSON.parse(dataStr);
 
-          if (event === 'search-started') {
-            setIsSearching(true);
-            setHasWebResults(false);
-          } else if (event === 'search-complete') {
-            setIsSearching(false);
-            setHasWebResults(data.hasResults);
-          } else if (event === 'model-chunk') {
+          if (event === 'model-chunk') {
             setResponses(prev => {
               const index = prev.findIndex(r => r.name === data.name);
               if (index === -1) return prev;
@@ -665,21 +668,21 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
         onClose={() => setShowToast(false)}
       />
 
-      {/* Navigation Header */}
-      <nav className="fixed left-0 right-0 top-0 z-50 border-b border-zinc-200 bg-white/80 backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/80">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-8 py-4">
+      {/* Floating Navigation */}
+      <nav className="fixed left-1/2 top-4 z-50 -translate-x-1/2">
+        <div className="flex items-center justify-between gap-6 rounded-full border border-zinc-200 bg-white/90 px-6 py-3 shadow-lg backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/90">
           {/* Logo/Brand */}
           <div className="flex items-center gap-2">
             <span className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Deepest Research</span>
           </div>
 
-          {/* Right side - Collection link and User menu */}
-          <div className="flex items-center gap-4">
+          {/* Desktop Menu - Hidden on mobile */}
+          <div className="hidden items-center gap-3 md:flex">
             {/* Collection link - only show if authenticated */}
             {isAuthenticated && (
               <a
                 href="/collection"
-                className="text-sm font-medium text-zinc-700 transition-colors hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
+                className="rounded-full px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
               >
                 My Collection
               </a>
@@ -687,7 +690,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
 
             {/* User menu */}
             {isAuthenticated ? (
-              <div className="flex items-center gap-3">
+              <>
                 <span className="text-sm text-zinc-600 dark:text-zinc-400">{userEmail}</span>
                 <button
                   onClick={async () => {
@@ -697,24 +700,112 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                     setUserName('');
                     showToastNotification('Signed out successfully');
                   }}
-                  className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                  className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
                 >
                   Sign out
                 </button>
-              </div>
+              </>
             ) : (
               <button
                 onClick={() => setShowSignup(true)}
-                className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
               >
                 Sign in
               </button>
             )}
           </div>
+
+          {/* Mobile Hamburger Menu - Visible on mobile only */}
+          <button
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            className="flex items-center justify-center rounded-full p-2 text-zinc-900 transition-colors hover:bg-zinc-100 dark:text-zinc-100 dark:hover:bg-zinc-800 md:hidden"
+            aria-label="Toggle menu"
+          >
+            {showMobileMenu ? (
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
         </div>
       </nav>
 
-      <div className="mx-auto max-w-7xl pt-20">
+      {/* Mobile Menu Overlay - Full screen slide-in from top */}
+      {showMobileMenu && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 top-20 z-40 bg-black/50 backdrop-blur-sm md:hidden"
+            onClick={() => setShowMobileMenu(false)}
+          />
+
+          {/* Menu Panel */}
+          <div className="fixed left-1/2 top-20 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-700 dark:bg-zinc-900 md:hidden">
+              <div className="flex flex-col divide-y divide-zinc-200 dark:divide-zinc-800">
+                {/* Collection link - only show if authenticated */}
+                {isAuthenticated && (
+                  <a
+                    href="/collection"
+                    onClick={() => setShowMobileMenu(false)}
+                    className="flex items-center gap-3 px-8 py-4 text-base font-medium text-zinc-900 transition-colors hover:bg-zinc-50 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                  >
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                    </svg>
+                    My Collection
+                  </a>
+                )}
+
+                {/* User section */}
+                {isAuthenticated ? (
+                  <>
+                    <div className="flex items-center gap-3 px-8 py-4 text-sm text-zinc-600 dark:text-zinc-400">
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      {userEmail}
+                    </div>
+                    <button
+                      onClick={async () => {
+                        await supabase.auth.signOut();
+                        setIsAuthenticated(false);
+                        setUserEmail('');
+                        setUserName('');
+                        setShowMobileMenu(false);
+                        showToastNotification('Signed out successfully');
+                      }}
+                      className="flex items-center gap-3 px-8 py-4 text-base font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/20"
+                    >
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      Sign out
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setShowSignup(true);
+                      setShowMobileMenu(false);
+                    }}
+                    className="flex items-center gap-3 px-8 py-4 text-base font-medium text-zinc-900 transition-colors hover:bg-zinc-50 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                  >
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                    </svg>
+                    Sign in
+                  </button>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
+      <div className="mx-auto max-w-7xl pt-24">
         {/* Audio notification dropdown - top right corner */}
         <div className="fixed top-20 right-4 z-50">
           <div className="sound-dropdown-container relative">
@@ -819,7 +910,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                 }
               }}
               placeholder="What would you like to research?"
-              className="w-full resize-none overflow-hidden border-b-2 border-zinc-300 bg-transparent py-3 text-2xl outline-none transition-colors focus:border-zinc-900 dark:border-zinc-700 dark:focus:border-zinc-100"
+              className="w-full resize-none overflow-hidden border-b-2 border-zinc-300 bg-transparent py-4 text-3xl outline-none transition-colors focus:border-zinc-900 dark:border-zinc-700 dark:focus:border-zinc-100"
               disabled={loading || loadingQuestions}
               rows={1}
               style={{
@@ -834,8 +925,8 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
             />
           </form>
 
-          {/* Get Started button - shows when query has text */}
-          {!loading && !loadingQuestions && !showQuestions && !responses.length && query.trim() && (
+          {/* Get Started button - shows when query has text and before questions start */}
+          {!loading && !loadingQuestions && !showQuestions && !showPromptPreview && !responses.length && query.trim() && (
             <div className="mt-4 flex justify-center">
               <GetStartedButton
                 text="Get started"
@@ -850,21 +941,21 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
             <div className="mt-3 flex gap-2">
               <button
                 onClick={() => setShowGlobe(!showGlobe)}
-                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm text-zinc-700 transition-colors hover:border-zinc-900 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-100 dark:hover:bg-zinc-900"
+                className="rounded-lg border border-zinc-300 px-5 py-3 text-base text-zinc-700 transition-colors hover:border-zinc-900 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-100 dark:hover:bg-zinc-900"
               >
                 {showGlobe ? '🌍 Hide Globe' : '🌍 Explore Globe'}
               </button>
               <button
                 onClick={handleGenerateIdeas}
                 disabled={loadingIdeas}
-                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm text-zinc-700 transition-colors hover:border-zinc-900 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-100 dark:hover:bg-zinc-900"
+                className="rounded-lg border border-zinc-300 px-5 py-3 text-base text-zinc-700 transition-colors hover:border-zinc-900 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-100 dark:hover:bg-zinc-900"
               >
                 {loadingIdeas ? '💡 Generating...' : '💡 Generate Ideas'}
               </button>
               <div className="personalize-dropdown-container">
                 <button
                   onClick={() => setShowPersonalize(!showPersonalize)}
-                  className="rounded-lg border border-zinc-300 px-4 py-2 text-sm text-zinc-700 transition-colors hover:border-zinc-900 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-100 dark:hover:bg-zinc-900"
+                  className="rounded-lg border border-zinc-300 px-5 py-3 text-base text-zinc-700 transition-colors hover:border-zinc-900 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-100 dark:hover:bg-zinc-900"
                 >
                   👤 Personalize
                 </button>
@@ -876,7 +967,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
           {!loading && !loadingQuestions && !showQuestions && !responses.length && (userLocation || userJobTitle || userIndustry) && (
             <div className="mt-3 flex flex-wrap gap-2">
               {userLocation && (
-                <div className="flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 dark:bg-blue-950/30 dark:text-blue-300">
+                <div className="flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 dark:bg-blue-950/30 dark:text-blue-300">
                   <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -896,7 +987,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                 </div>
               )}
               {userJobTitle && (
-                <div className="flex items-center gap-1.5 rounded-full bg-purple-50 px-3 py-1.5 text-xs font-medium text-purple-700 dark:bg-purple-950/30 dark:text-purple-300">
+                <div className="flex items-center gap-2 rounded-full bg-purple-50 px-4 py-2 text-sm font-medium text-purple-700 dark:bg-purple-950/30 dark:text-purple-300">
                   <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
@@ -915,7 +1006,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                 </div>
               )}
               {userIndustry && (
-                <div className="flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700 dark:bg-green-950/30 dark:text-green-300">
+                <div className="flex items-center gap-2 rounded-full bg-green-50 px-4 py-2 text-sm font-medium text-green-700 dark:bg-green-950/30 dark:text-green-300">
                   <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                   </svg>
@@ -1040,8 +1131,8 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
           <div className="mb-12 flex flex-col items-center justify-center gap-4">
             <PixelatedCanvas
               src="/assets/gpu.png"
-              width={300}
-              height={200}
+              width={600}
+              height={400}
               cellSize={2}
               dotScale={0.85}
               shape="square"
@@ -1123,6 +1214,41 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
           </div>
         )}
 
+        {/* Prompt Preview & Approval */}
+        {showPromptPreview && (
+          <div className="mb-12">
+            <div className="mb-4">
+              <h2 className="mb-2 text-xl font-semibold text-zinc-900 dark:text-zinc-100">
+                Review Your Research Prompt
+              </h2>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                This is the final prompt that will be sent to all AI models. You can edit it if needed.
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <textarea
+                value={editablePrompt}
+                onChange={(e) => setEditablePrompt(e.target.value)}
+                className="w-full min-h-[200px] rounded-lg border-2 border-zinc-300 bg-white p-4 font-mono text-sm outline-none transition-colors focus:border-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:border-zinc-100"
+                placeholder="Edit your prompt..."
+              />
+            </div>
+
+            <div className="flex items-start">
+              <button
+                onClick={() => {
+                  setShowPromptPreview(false);
+                  setShowQuestions(true);
+                }}
+                className="text-sm text-zinc-600 transition-opacity hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+              >
+                ← Back to Questions
+              </button>
+            </div>
+          </div>
+        )}
+
         {loading && (
           <div className="mb-8 flex flex-col items-center justify-center">
             <JumpingTextInstagram
@@ -1136,14 +1262,16 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
           </div>
         )}
 
-        {/* Model selector - show when not loading/questioning */}
-        {!loading && !loadingQuestions && !showQuestions && !responses.length && (
+        {/* Model selector - show during prompt preview or initial state */}
+        {!loading && !loadingQuestions && !showQuestions && !responses.length && (showPromptPreview || (!query.trim())) && (
           <div className={`mb-8 relative transition-all ${showBench ? 'mr-80' : ''}`}>
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Research Team</h3>
+              <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100">
+                {showPromptPreview ? 'Choose Your Research Roster' : 'Research Team'}
+              </h3>
               <button
                 onClick={() => setShowBench(!showBench)}
-                className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+                className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
               >
                 {showBench ? 'Hide Bench' : 'Show Bench'}
               </button>
@@ -1227,6 +1355,17 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
               )}
             </div>
 
+            {/* Start Research Button - only show during prompt preview */}
+            {showPromptPreview && (
+              <div className="mt-6 flex justify-center">
+                <GetStartedButton
+                  text="Start Research"
+                  onClick={handleStartResearch}
+                  className="w-48"
+                />
+              </div>
+            )}
+
             {/* Bench Sidebar */}
             {showBench && (
               <div className="fixed right-0 top-0 z-50 h-screen w-80 border-l border-zinc-200 bg-white p-6 shadow-2xl dark:border-zinc-800 dark:bg-zinc-900">
@@ -1283,32 +1422,6 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
           </div>
         )}
 
-        {/* Web search indicator */}
-        {(isSearching || hasWebResults) && (
-          <div className="mb-6 flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-900/30 dark:bg-emerald-950/20">
-            {isSearching ? (
-              <>
-                <div className="flex h-5 w-5 items-center justify-center">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent dark:border-emerald-400" />
-                </div>
-                <JumpingTextInstagram
-                  text="Searching the web for current information..."
-                  mode="character"
-                  className="text-sm font-medium text-emerald-700 dark:text-emerald-300"
-                />
-              </>
-            ) : (
-              <>
-                <svg className="h-5 w-5 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-                <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                  Web search complete - models have access to current information
-                </p>
-              </>
-            )}
-          </div>
-        )}
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4">
           {loading ? (
@@ -1375,7 +1488,14 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                     </div>
                   </div>
                   {response.error ? (
-                    <p className="text-xs text-red-500">{response.error}</p>
+                    <div className="rounded-md bg-red-50 p-3 dark:bg-red-950/20">
+                      <p className="text-xs font-medium text-red-700 dark:text-red-400">Error:</p>
+                      <p className="mt-1 text-xs text-red-600 dark:text-red-300">{response.error}</p>
+                    </div>
+                  ) : !response.text ? (
+                    <div className="rounded-md bg-yellow-50 p-3 dark:bg-yellow-950/20">
+                      <p className="text-xs text-yellow-700 dark:text-yellow-400">No response received from this model</p>
+                    </div>
                   ) : (
                     <>
                       <div
@@ -1383,7 +1503,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                           !isExpanded ? 'max-h-32 overflow-y-auto' : ''
                         }`}
                       >
-                        <ReactMarkdown>{response.text || ''}</ReactMarkdown>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{response.text}</ReactMarkdown>
                       </div>
                       <button
                         onClick={() => toggleCard(index)}
@@ -1409,7 +1529,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                   !synthesisExpanded ? 'max-h-64 overflow-y-auto' : ''
                 }`}
               >
-                <ReactMarkdown>{synthesis}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{synthesis}</ReactMarkdown>
               </div>
               <div className="mt-6 flex items-center justify-between gap-4">
                 <button
