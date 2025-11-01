@@ -123,39 +123,61 @@ export default function InteractiveGlobe({ onLocationSelect }: InteractiveGlobeP
           htmlElement={(d: any) => {
             const el = document.createElement('div');
 
-            // City label
+            // City label with connection point
             el.innerHTML = `
               <div style="
-                background: rgba(0, 0, 0, 0.75);
-                backdrop-filter: blur(8px);
-                color: white;
-                padding: 6px 12px;
-                border-radius: 8px;
-                font-size: 13px;
-                font-weight: 500;
-                cursor: pointer;
-                border: 1px solid rgba(255, 255, 255, 0.2);
-                transition: all 0.2s;
-                white-space: nowrap;
-                user-select: none;
-              " class="city-marker">
-                <span style="margin-right: 4px;">${d.emoji}</span>
-                ${d.name}
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 2px;
+              ">
+                <div style="
+                  background: rgba(0, 0, 0, 0.7);
+                  backdrop-filter: blur(6px);
+                  color: white;
+                  padding: 3px 8px;
+                  border-radius: 6px;
+                  font-size: 11px;
+                  font-weight: 500;
+                  cursor: pointer;
+                  transition: all 0.2s;
+                  white-space: nowrap;
+                  user-select: none;
+                " class="city-label">
+                  <span style="margin-right: 3px;">${d.emoji}</span>
+                  ${d.name}
+                </div>
+                <div style="
+                  width: 1px;
+                  height: 12px;
+                  background: rgba(255, 255, 255, 0.4);
+                " class="city-line"></div>
+                <div style="
+                  width: 6px;
+                  height: 6px;
+                  background: rgba(255, 255, 255, 0.9);
+                  border-radius: 50%;
+                  box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+                " class="city-point"></div>
               </div>
             `;
 
             el.addEventListener('click', () => handleQuickLocationClick(d));
             el.addEventListener('mouseenter', (e) => {
-              const marker = (e.currentTarget as HTMLElement).querySelector('.city-marker') as HTMLElement;
-              marker.style.transform = 'scale(1.1)';
-              marker.style.background = 'rgba(0, 0, 0, 0.9)';
-              marker.style.borderColor = 'rgba(255, 255, 255, 0.4)';
+              const label = (e.currentTarget as HTMLElement).querySelector('.city-label') as HTMLElement;
+              const point = (e.currentTarget as HTMLElement).querySelector('.city-point') as HTMLElement;
+              label.style.transform = 'scale(1.1)';
+              label.style.background = 'rgba(0, 0, 0, 0.9)';
+              point.style.transform = 'scale(1.3)';
+              point.style.boxShadow = '0 0 12px rgba(255, 255, 255, 0.8)';
             });
             el.addEventListener('mouseleave', (e) => {
-              const marker = (e.currentTarget as HTMLElement).querySelector('.city-marker') as HTMLElement;
-              marker.style.transform = 'scale(1)';
-              marker.style.background = 'rgba(0, 0, 0, 0.75)';
-              marker.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+              const label = (e.currentTarget as HTMLElement).querySelector('.city-label') as HTMLElement;
+              const point = (e.currentTarget as HTMLElement).querySelector('.city-point') as HTMLElement;
+              label.style.transform = 'scale(1)';
+              label.style.background = 'rgba(0, 0, 0, 0.7)';
+              point.style.transform = 'scale(1)';
+              point.style.boxShadow = '0 0 8px rgba(255, 255, 255, 0.6)';
             });
 
             el.style.pointerEvents = 'auto';

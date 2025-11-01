@@ -1,5 +1,4 @@
-import { createGateway } from '@ai-sdk/gateway';
-import { streamText } from 'ai';
+import Anthropic from '@anthropic-ai/sdk';
 
 export const runtime = 'edge';
 
@@ -17,10 +16,16 @@ export async function POST(req: Request) {
     ? `${location.city}, ${location.country}`
     : location.country || `coordinates ${location.lat}, ${location.lng}`;
 
+  interface NewsArticle {
+    title: string;
+    description: string;
+    url: string;
+    source?: { name: string };
+  }
+
   // Fetch news from the location using GNews API (free tier)
-  let newsArticles: any[] = [];
+  let newsArticles: NewsArticle[] = [];
   try {
-    const query = location.country || 'business';
     const newsResponse = await fetch(
       `https://gnews.io/api/v4/top-headlines?country=${getCountryCode(location.country || '')}&lang=en&max=10&apikey=${process.env.GNEWS_API_KEY || 'demo'}`
     );
@@ -33,14 +38,13 @@ export async function POST(req: Request) {
     console.error('Error fetching news:', error);
   }
 
-  // If no news API or it fails, generate suggestions based on location only
-  const gateway = createGateway({
-    apiKey: process.env.AI_GATEWAY_API_KEY,
-  });
-
   const newsContext = newsArticles.length > 0
     ? newsArticles.map(article => `- ${article.title}: ${article.description}`).join('\n')
     : 'No recent news available for this location.';
+
+  const anthropic = new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+  });
 
   const prompt = `You are helping a professional researcher discover interesting research topics.
 
@@ -61,16 +65,55 @@ Each topic should be:
 3. Based on real trends or companies from this region
 4. Something that would provide strategic insights
 
+Use web search to find current information about companies, markets, or trends in this region to enhance your research topic suggestions with recent developments.
+
 Format: Return ONLY a JSON array of strings, no other text. Example:
 ["Deep dive into [Company]'s market dominance in [sector]", "Analysis of [trend] in [country]'s [industry]"]`;
 
   try {
-    const result = await streamText({
-      model: gateway('anthropic/claude-sonnet-4.5'),
-      prompt,
+    // Build user_location for localized search results
+    interface UserLocation {
+      type: 'approximate';
+      country: string;
+      city?: string;
+    }
+
+    // Convert country name to 2-letter ISO code
+    const countryCode = getCountryCode(location.country || '');
+
+    const userLocation: UserLocation = {
+      type: 'approximate',
+      country: countryCode,
+    };
+
+    if (location.city) {
+      userLocation.city = location.city;
+    }
+
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 2000,
+      messages: [
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      tools: [
+        {
+          type: 'web_search_20250305',
+          name: 'web_search',
+          max_uses: 5,
+          user_location: userLocation,
+        },
+      ],
     });
 
-    const text = await result.text;
+    // Extract text from response
+    const text = response.content
+      .filter(block => block.type === 'text')
+      .map(block => ('text' in block ? block.text : ''))
+      .join('\n');
 
     // Try to parse JSON from the response
     let suggestions: string[] = [];
@@ -84,9 +127,9 @@ Format: Return ONLY a JSON array of strings, no other text. Example:
       // Fallback: split by newlines and clean up
       suggestions = text
         .split('\n')
-        .filter(line => line.trim().length > 0)
-        .map(line => line.replace(/^[-•*]\s*/, '').replace(/^["']|["']$/g, '').trim())
-        .filter(line => line.length > 10)
+        .filter((line: string) => line.trim().length > 0)
+        .map((line: string) => line.replace(/^[-•*]\s*/, '').replace(/^["']|["']$/g, '').trim())
+        .filter((line: string) => line.length > 10)
         .slice(0, 5);
     }
 
@@ -101,6 +144,7 @@ Format: Return ONLY a JSON array of strings, no other text. Example:
       suggestions,
     });
   } catch (error) {
+    console.error('Error generating suggestions:', error);
     return Response.json(
       { error: 'Failed to generate suggestions' },
       { status: 500 }
