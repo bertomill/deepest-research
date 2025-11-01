@@ -64,7 +64,7 @@ export default function InteractiveGlobe({ onLocationSelect }: InteractiveGlobeP
       globeEl.current.controls().autoRotate = true;
       globeEl.current.controls().autoRotateSpeed = 0.5;
 
-      // Add planets to the scene
+      // Add planets as 3D meshes to the scene
       const scene = globeEl.current.scene();
 
       PLANETS.forEach((planet) => {
@@ -88,7 +88,7 @@ export default function InteractiveGlobe({ onLocationSelect }: InteractiveGlobeP
           radius * Math.sin(phi) * Math.sin(theta)
         );
 
-        mesh.userData = { planet: planet.id, name: planet.name };
+        mesh.userData = { planet: planet.id, name: planet.name, isPlanet: true };
         planetMeshesRef.current.set(planet.id, mesh);
         scene.add(mesh);
       });
@@ -169,47 +169,9 @@ export default function InteractiveGlobe({ onLocationSelect }: InteractiveGlobeP
   }
 
   return (
-    <div className="w-full space-y-4">
-      {/* Quick Location Cards */}
-      <div className="mb-4">
-        <p className="mb-3 text-center text-sm font-medium text-zinc-600 dark:text-zinc-400">
-          Tap a city to discover research topics
-        </p>
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:flex lg:flex-wrap lg:justify-center lg:gap-3">
-          {QUICK_LOCATIONS.map((location) => (
-            <button
-              key={location.name}
-              onClick={() => handleQuickLocationClick(location)}
-              className="flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm font-medium transition-all hover:border-zinc-900 hover:bg-zinc-50 active:scale-95 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-100 dark:hover:bg-zinc-800"
-            >
-              <span className="text-lg">{location.emoji}</span>
-              <span>{location.name}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Planet Cards for Space Industry Research */}
-      <div className="mb-4">
-        <p className="mb-3 text-center text-sm font-medium text-zinc-600 dark:text-zinc-400">
-          Or explore space industry research
-        </p>
-        <div className="flex flex-wrap justify-center gap-3">
-          {PLANETS.map((planet) => (
-            <button
-              key={planet.id}
-              onClick={() => handlePlanetClick(planet)}
-              className="flex items-center justify-center gap-2 rounded-lg border border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50 px-4 py-3 text-sm font-medium transition-all hover:border-purple-400 hover:from-purple-100 hover:to-indigo-100 active:scale-95 dark:border-purple-800 dark:from-purple-950 dark:to-indigo-950 dark:hover:border-purple-600"
-            >
-              <span className="text-lg">{planet.emoji}</span>
-              <span>{planet.name}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Globe */}
-      <div className="relative h-[500px] w-full overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
+    <div className="w-full">
+      {/* Globe with integrated labels */}
+      <div className="relative h-[600px] w-full overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
         <GlobeComponent
           ref={globeEl}
           globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
@@ -217,12 +179,92 @@ export default function InteractiveGlobe({ onLocationSelect }: InteractiveGlobeP
           backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
           onGlobeClick={handleGlobeClick}
           width={typeof window !== 'undefined' ? window.innerWidth * 0.9 : 800}
-          height={500}
+          height={600}
           atmosphereColor="lightskyblue"
           atmosphereAltitude={0.15}
+          // Add city and planet markers
+          htmlElementsData={[...QUICK_LOCATIONS, ...PLANETS.map(p => ({ ...p, isPlanet: true }))]}
+          htmlElement={(d: any) => {
+            const el = document.createElement('div');
+
+            if (d.isPlanet) {
+              // Planet label
+              el.innerHTML = `
+                <div style="
+                  background: linear-gradient(135deg, rgba(139, 92, 246, 0.9), rgba(99, 102, 241, 0.9));
+                  backdrop-filter: blur(8px);
+                  color: white;
+                  padding: 8px 14px;
+                  border-radius: 10px;
+                  font-size: 14px;
+                  font-weight: 600;
+                  cursor: pointer;
+                  border: 2px solid rgba(255, 255, 255, 0.3);
+                  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+                  transition: all 0.3s;
+                  white-space: nowrap;
+                  user-select: none;
+                " class="planet-marker">
+                  ${d.emoji} ${d.name}
+                </div>
+              `;
+
+              el.addEventListener('click', () => handlePlanetClick(d));
+              el.addEventListener('mouseenter', (e) => {
+                const marker = (e.currentTarget as HTMLElement).querySelector('.planet-marker') as HTMLElement;
+                marker.style.transform = 'scale(1.1)';
+                marker.style.boxShadow = '0 6px 16px rgba(139, 92, 246, 0.6)';
+              });
+              el.addEventListener('mouseleave', (e) => {
+                const marker = (e.currentTarget as HTMLElement).querySelector('.planet-marker') as HTMLElement;
+                marker.style.transform = 'scale(1)';
+                marker.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.4)';
+              });
+            } else {
+              // City label
+              el.innerHTML = `
+                <div style="
+                  background: rgba(0, 0, 0, 0.75);
+                  backdrop-filter: blur(8px);
+                  color: white;
+                  padding: 6px 12px;
+                  border-radius: 8px;
+                  font-size: 13px;
+                  font-weight: 500;
+                  cursor: pointer;
+                  border: 1px solid rgba(255, 255, 255, 0.2);
+                  transition: all 0.2s;
+                  white-space: nowrap;
+                  user-select: none;
+                " class="city-marker">
+                  <span style="margin-right: 4px;">${d.emoji}</span>
+                  ${d.name}
+                </div>
+              `;
+
+              el.addEventListener('click', () => handleQuickLocationClick(d));
+              el.addEventListener('mouseenter', (e) => {
+                const marker = (e.currentTarget as HTMLElement).querySelector('.city-marker') as HTMLElement;
+                marker.style.transform = 'scale(1.1)';
+                marker.style.background = 'rgba(0, 0, 0, 0.9)';
+                marker.style.borderColor = 'rgba(255, 255, 255, 0.4)';
+              });
+              el.addEventListener('mouseleave', (e) => {
+                const marker = (e.currentTarget as HTMLElement).querySelector('.city-marker') as HTMLElement;
+                marker.style.transform = 'scale(1)';
+                marker.style.background = 'rgba(0, 0, 0, 0.75)';
+                marker.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+              });
+            }
+
+            el.style.pointerEvents = 'auto';
+            el.style.cursor = 'pointer';
+
+            return el;
+          }}
         />
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-lg bg-black/50 px-4 py-2 text-xs text-white backdrop-blur-sm sm:text-sm">
-          Or click anywhere on the globe
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 rounded-lg bg-black/50 px-4 py-2 text-xs text-white backdrop-blur-sm sm:text-sm">
+          Click on cities or planets to explore research topics
         </div>
       </div>
     </div>
