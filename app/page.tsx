@@ -2,11 +2,30 @@
 
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import dynamic from 'next/dynamic';
+
+const InteractiveGlobe = dynamic(() => import('./components/InteractiveGlobe'), {
+  ssr: false,
+});
 
 interface ModelResponse {
   name: string;
   text: string | null;
   error: string | null;
+}
+
+interface LocationData {
+  lat: number;
+  lng: number;
+  city?: string;
+  country?: string;
+}
+
+interface NewsArticle {
+  title: string;
+  description: string;
+  url: string;
+  source: string;
 }
 
 const MODELS = [
@@ -29,6 +48,13 @@ export default function Home() {
   const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set());
   const [synthesisExpanded, setSynthesisExpanded] = useState(false);
 
+  // Globe-related state
+  const [showGlobe, setShowGlobe] = useState(true);
+  const [loadingLocation, setLoadingLocation] = useState(false);
+  const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
+  const [locationNews, setLocationNews] = useState<NewsArticle[]>([]);
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
+
   const toggleCard = (index: number) => {
     const newExpanded = new Set(expandedCards);
     if (newExpanded.has(index)) {
@@ -37,6 +63,38 @@ export default function Home() {
       newExpanded.add(index);
     }
     setExpandedCards(newExpanded);
+  };
+
+  const handleLocationSelect = async (location: LocationData) => {
+    setLoadingLocation(true);
+    setSelectedLocation(
+      location.city
+        ? `${location.city}, ${location.country}`
+        : location.country || `${location.lat}, ${location.lng}`
+    );
+
+    try {
+      const res = await fetch('/api/location-news', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ location }),
+      });
+
+      const data = await res.json();
+      setLocationSuggestions(data.suggestions || []);
+      setLocationNews(data.news || []);
+    } catch (error) {
+      console.error('Error fetching location data:', error);
+    } finally {
+      setLoadingLocation(false);
+    }
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setQuery(suggestion);
+    setShowGlobe(false);
+    setLocationSuggestions([]);
+    setLocationNews([]);
   };
 
   const handleInitialSubmit = async (e: React.FormEvent) => {
@@ -113,16 +171,85 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
   return (
     <div className="min-h-screen p-8">
       <div className="mx-auto max-w-7xl">
-        <form onSubmit={handleInitialSubmit} className="mb-12">
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="What would you like to research?"
-            className="w-full border-b-2 border-zinc-300 bg-transparent py-3 text-2xl outline-none transition-colors focus:border-zinc-900 dark:border-zinc-700 dark:focus:border-zinc-100"
-            disabled={loading || loadingQuestions}
-          />
-        </form>
+        <div className="mb-4 flex items-center justify-between">
+          <form onSubmit={handleInitialSubmit} className="flex-1">
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="What would you like to research?"
+              className="w-full border-b-2 border-zinc-300 bg-transparent py-3 text-2xl outline-none transition-colors focus:border-zinc-900 dark:border-zinc-700 dark:focus:border-zinc-100"
+              disabled={loading || loadingQuestions}
+            />
+          </form>
+          {!loading && !loadingQuestions && !showQuestions && !responses.length && (
+            <button
+              onClick={() => setShowGlobe(!showGlobe)}
+              className="ml-4 text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+            >
+              {showGlobe ? 'Hide Globe' : 'Explore Globe'}
+            </button>
+          )}
+        </div>
+
+        {/* Globe and location suggestions */}
+        {showGlobe && !loading && !loadingQuestions && !showQuestions && !responses.length && (
+          <div className="mb-12">
+            <InteractiveGlobe onLocationSelect={handleLocationSelect} />
+
+            {loadingLocation && (
+              <div className="mt-8 text-center text-zinc-500">
+                Fetching news and generating research topics...
+              </div>
+            )}
+
+            {selectedLocation && locationSuggestions.length > 0 && (
+              <div className="mt-8">
+                <h3 className="mb-4 text-xl font-semibold">
+                  Research Ideas from {selectedLocation}
+                </h3>
+
+                {locationNews.length > 0 && (
+                  <div className="mb-6 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+                    <h4 className="mb-3 text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                      Recent News
+                    </h4>
+                    <div className="space-y-2">
+                      {locationNews.map((article, index) => (
+                        <div key={index} className="text-sm">
+                          <a
+                            href={article.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium text-zinc-900 hover:underline dark:text-zinc-100"
+                          >
+                            {article.title}
+                          </a>
+                          <p className="text-zinc-600 dark:text-zinc-400">
+                            {article.description}
+                          </p>
+                          <p className="text-xs text-zinc-400">{article.source}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  {locationSuggestions.map((suggestion, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      className="rounded-lg border border-zinc-200 p-4 text-left transition-colors hover:border-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:border-zinc-100 dark:hover:bg-zinc-900"
+                    >
+                      <p className="text-sm font-medium">{suggestion}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Loading questions state */}
         {loadingQuestions && (
