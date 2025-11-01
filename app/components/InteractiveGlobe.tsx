@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import * as THREE from 'three';
 
 // Dynamically import Globe to avoid SSR issues
 const GlobeComponent = dynamic(() => import('react-globe.gl'), {
@@ -14,22 +13,10 @@ interface LocationData {
   lng: number;
   city?: string;
   country?: string;
-  planet?: string; // Added for planet identification
 }
 
 interface InteractiveGlobeProps {
   onLocationSelect: (location: LocationData) => void;
-}
-
-interface PlanetData {
-  id: string;
-  name: string;
-  emoji: string;
-  lat: number;
-  lng: number;
-  altitude: number;
-  color: string;
-  size: number;
 }
 
 // Predefined major business hubs
@@ -42,17 +29,9 @@ const QUICK_LOCATIONS = [
   { name: 'San Francisco', city: 'San Francisco', country: 'United States', lat: 37.7749, lng: -122.4194, emoji: '🌉' },
 ];
 
-// Celestial bodies for space industry research
-const PLANETS: PlanetData[] = [
-  { id: 'moon', name: 'Moon', emoji: '🌙', lat: 45, lng: 45, altitude: 0.8, color: '#cccccc', size: 0.15 },
-  { id: 'mars', name: 'Mars', emoji: '🔴', lat: -30, lng: 120, altitude: 0.9, color: '#cd5c5c', size: 0.18 },
-  { id: 'jupiter', name: 'Jupiter', emoji: '🪐', lat: 20, lng: -90, altitude: 1.0, color: '#daa520', size: 0.25 },
-];
-
 export default function InteractiveGlobe({ onLocationSelect }: InteractiveGlobeProps) {
   const globeEl = useRef<any>(null);
   const [isClient, setIsClient] = useState(false);
-  const planetMeshesRef = useRef<Map<string, any>>(new Map());
 
   useEffect(() => {
     setIsClient(true);
@@ -63,53 +42,8 @@ export default function InteractiveGlobe({ onLocationSelect }: InteractiveGlobeP
       // Auto-rotate
       globeEl.current.controls().autoRotate = true;
       globeEl.current.controls().autoRotateSpeed = 0.5;
-
-      // Add planets as 3D meshes to the scene
-      const scene = globeEl.current.scene();
-
-      PLANETS.forEach((planet) => {
-        // Create planet mesh
-        const geometry = new THREE.SphereGeometry(planet.size, 32, 32);
-        const material = new THREE.MeshPhongMaterial({
-          color: planet.color,
-          emissive: planet.color,
-          emissiveIntensity: 0.3,
-        });
-        const mesh = new THREE.Mesh(geometry, material);
-
-        // Convert lat/lng/altitude to 3D position
-        const phi = (90 - planet.lat) * (Math.PI / 180);
-        const theta = (planet.lng + 180) * (Math.PI / 180);
-        const radius = 100 * (1 + planet.altitude); // Earth globe radius is 100
-
-        mesh.position.set(
-          -radius * Math.sin(phi) * Math.cos(theta),
-          radius * Math.cos(phi),
-          radius * Math.sin(phi) * Math.sin(theta)
-        );
-
-        mesh.userData = { planet: planet.id, name: planet.name, isPlanet: true };
-        planetMeshesRef.current.set(planet.id, mesh);
-        scene.add(mesh);
-      });
     }
   }, [isClient]);
-
-  const handlePlanetClick = (planet: PlanetData) => {
-    // Stop auto-rotation
-    if (globeEl.current) {
-      globeEl.current.controls().autoRotate = false;
-    }
-
-    // Pass planet data as location
-    onLocationSelect({
-      lat: 0,
-      lng: 0,
-      planet: planet.id,
-      city: planet.name,
-      country: 'Space',
-    });
-  };
 
   const handleQuickLocationClick = (location: typeof QUICK_LOCATIONS[0]) => {
     // Stop auto-rotation
@@ -182,80 +116,45 @@ export default function InteractiveGlobe({ onLocationSelect }: InteractiveGlobeP
           height={600}
           atmosphereColor="lightskyblue"
           atmosphereAltitude={0.15}
-          // Add city and planet markers
-          htmlElementsData={[...QUICK_LOCATIONS, ...PLANETS.map(p => ({ ...p, isPlanet: true }))]}
+          // Add city markers only
+          htmlElementsData={QUICK_LOCATIONS}
           htmlElement={(d: any) => {
             const el = document.createElement('div');
 
-            if (d.isPlanet) {
-              // Planet label
-              el.innerHTML = `
-                <div style="
-                  background: linear-gradient(135deg, rgba(139, 92, 246, 0.9), rgba(99, 102, 241, 0.9));
-                  backdrop-filter: blur(8px);
-                  color: white;
-                  padding: 8px 14px;
-                  border-radius: 10px;
-                  font-size: 14px;
-                  font-weight: 600;
-                  cursor: pointer;
-                  border: 2px solid rgba(255, 255, 255, 0.3);
-                  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
-                  transition: all 0.3s;
-                  white-space: nowrap;
-                  user-select: none;
-                " class="planet-marker">
-                  ${d.emoji} ${d.name}
-                </div>
-              `;
+            // City label
+            el.innerHTML = `
+              <div style="
+                background: rgba(0, 0, 0, 0.75);
+                backdrop-filter: blur(8px);
+                color: white;
+                padding: 6px 12px;
+                border-radius: 8px;
+                font-size: 13px;
+                font-weight: 500;
+                cursor: pointer;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                transition: all 0.2s;
+                white-space: nowrap;
+                user-select: none;
+              " class="city-marker">
+                <span style="margin-right: 4px;">${d.emoji}</span>
+                ${d.name}
+              </div>
+            `;
 
-              el.addEventListener('click', () => handlePlanetClick(d));
-              el.addEventListener('mouseenter', (e) => {
-                const marker = (e.currentTarget as HTMLElement).querySelector('.planet-marker') as HTMLElement;
-                marker.style.transform = 'scale(1.1)';
-                marker.style.boxShadow = '0 6px 16px rgba(139, 92, 246, 0.6)';
-              });
-              el.addEventListener('mouseleave', (e) => {
-                const marker = (e.currentTarget as HTMLElement).querySelector('.planet-marker') as HTMLElement;
-                marker.style.transform = 'scale(1)';
-                marker.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.4)';
-              });
-            } else {
-              // City label
-              el.innerHTML = `
-                <div style="
-                  background: rgba(0, 0, 0, 0.75);
-                  backdrop-filter: blur(8px);
-                  color: white;
-                  padding: 6px 12px;
-                  border-radius: 8px;
-                  font-size: 13px;
-                  font-weight: 500;
-                  cursor: pointer;
-                  border: 1px solid rgba(255, 255, 255, 0.2);
-                  transition: all 0.2s;
-                  white-space: nowrap;
-                  user-select: none;
-                " class="city-marker">
-                  <span style="margin-right: 4px;">${d.emoji}</span>
-                  ${d.name}
-                </div>
-              `;
-
-              el.addEventListener('click', () => handleQuickLocationClick(d));
-              el.addEventListener('mouseenter', (e) => {
-                const marker = (e.currentTarget as HTMLElement).querySelector('.city-marker') as HTMLElement;
-                marker.style.transform = 'scale(1.1)';
-                marker.style.background = 'rgba(0, 0, 0, 0.9)';
-                marker.style.borderColor = 'rgba(255, 255, 255, 0.4)';
-              });
-              el.addEventListener('mouseleave', (e) => {
-                const marker = (e.currentTarget as HTMLElement).querySelector('.city-marker') as HTMLElement;
-                marker.style.transform = 'scale(1)';
-                marker.style.background = 'rgba(0, 0, 0, 0.75)';
-                marker.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-              });
-            }
+            el.addEventListener('click', () => handleQuickLocationClick(d));
+            el.addEventListener('mouseenter', (e) => {
+              const marker = (e.currentTarget as HTMLElement).querySelector('.city-marker') as HTMLElement;
+              marker.style.transform = 'scale(1.1)';
+              marker.style.background = 'rgba(0, 0, 0, 0.9)';
+              marker.style.borderColor = 'rgba(255, 255, 255, 0.4)';
+            });
+            el.addEventListener('mouseleave', (e) => {
+              const marker = (e.currentTarget as HTMLElement).querySelector('.city-marker') as HTMLElement;
+              marker.style.transform = 'scale(1)';
+              marker.style.background = 'rgba(0, 0, 0, 0.75)';
+              marker.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+            });
 
             el.style.pointerEvents = 'auto';
             el.style.cursor = 'pointer';
@@ -264,7 +163,7 @@ export default function InteractiveGlobe({ onLocationSelect }: InteractiveGlobeP
           }}
         />
         <div className="absolute top-4 left-1/2 -translate-x-1/2 rounded-lg bg-black/50 px-4 py-2 text-xs text-white backdrop-blur-sm sm:text-sm">
-          Click on cities or planets to explore research topics
+          Click on cities to explore research topics
         </div>
       </div>
     </div>
