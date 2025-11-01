@@ -27,6 +27,8 @@ const QUICK_LOCATIONS = [
   { name: 'Singapore', city: 'Singapore', country: 'Singapore', lat: 1.3521, lng: 103.8198, emoji: '🇸🇬' },
   { name: 'Bangalore', city: 'Bangalore', country: 'India', lat: 12.9716, lng: 77.5946, emoji: '🇮🇳' },
   { name: 'San Francisco', city: 'San Francisco', country: 'United States', lat: 37.7749, lng: -122.4194, emoji: '🌉' },
+  { name: 'Lagos', city: 'Lagos', country: 'Nigeria', lat: 6.5244, lng: 3.3792, emoji: '🇳🇬' },
+  { name: 'São Paulo', city: 'São Paulo', country: 'Brazil', lat: -23.5505, lng: -46.6333, emoji: '🇧🇷' },
 ];
 
 export default function InteractiveGlobe({ onLocationSelect }: InteractiveGlobeProps) {
