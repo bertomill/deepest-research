@@ -5,6 +5,9 @@ import ReactMarkdown from 'react-markdown';
 import dynamic from 'next/dynamic';
 import { GlowingEffect } from '@/components/ui/glowing-effect';
 import { PixelatedCanvas } from '@/components/ui/pixelated-canvas';
+import { Toast } from '@/components/ui/toast';
+import JumpingTextInstagram from '@/components/ui/jumping-text-instagram';
+import GetStartedButton from '@/components/ui/get-started-button';
 import { supabase } from '@/lib/supabase';
 
 const InteractiveGlobe = dynamic(() => import('./components/InteractiveGlobe'), {
@@ -94,10 +97,18 @@ export default function Home() {
   const [userJobTitle, setUserJobTitle] = useState('');
   const [userIndustry, setUserIndustry] = useState('');
 
+  // Web search state
+  const [isSearching, setIsSearching] = useState(false);
+  const [hasWebResults, setHasWebResults] = useState(false);
+
   // Audio notification state
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [selectedSound, setSelectedSound] = useState<string>('chord');
   const [showSoundDropdown, setShowSoundDropdown] = useState(false);
+
+  // Toast notification state
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   // Model selection state
   const [selectedModels, setSelectedModels] = useState<string[]>(DEFAULT_MODELS);
@@ -190,6 +201,12 @@ export default function Home() {
       textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 192) + 'px';
     }
   }, [query]);
+
+  // Helper function to show toast notification
+  const showToastNotification = (message: string) => {
+    setToastMessage(message);
+    setShowToast(true);
+  };
 
   // Different notification sounds
   const playNotificationSound = (soundType?: string) => {
@@ -289,7 +306,7 @@ export default function Home() {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
-        alert('Please sign in to save research');
+        showToastNotification('Please sign in to save research');
         setShowSignup(true);
         return;
       }
@@ -308,21 +325,21 @@ export default function Home() {
 
       if (error) {
         console.error('Save error:', error);
-        alert('Failed to save research. Please try again.');
+        showToastNotification('Failed to save research. Please try again.');
         return;
       }
 
-      alert('Research saved to your collection!');
+      showToastNotification('Research saved to your collection!');
     } catch (error) {
       console.error('Save error:', error);
-      alert('Failed to save research. Please try again.');
+      showToastNotification('Failed to save research. Please try again.');
     }
   };
 
   // Handle signup
   const handleSignup = async () => {
     if (!userName || !userEmail) {
-      alert('Please fill in all fields');
+      showToastNotification('Please fill in all fields');
       return;
     }
 
@@ -339,7 +356,7 @@ export default function Home() {
       });
 
       if (error) {
-        alert(`Error: ${error.message}`);
+        showToastNotification(`Error: ${error.message}`);
         return;
       }
 
@@ -349,11 +366,11 @@ export default function Home() {
 
         // After signup, save the research
         await handleSaveToCollection();
-        alert('Account created! Check your email to verify your account.');
+        showToastNotification('Account created and research saved to your collection!');
       }
     } catch (error) {
       console.error('Signup error:', error);
-      alert('Failed to create account. Please try again.');
+      showToastNotification('Failed to create account. Please try again.');
     }
   };
 
@@ -542,6 +559,8 @@ export default function Home() {
     setShowQuestions(false);
     setExpandedCards(new Set());
     setSynthesisExpanded(false);
+    setIsSearching(false);
+    setHasWebResults(false);
 
     // Initialize empty responses based on selected models
     const initialResponses: ModelResponse[] = selectedModels.map(modelId => ({
@@ -591,7 +610,13 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
           const [, event, dataStr] = eventMatch;
           const data = JSON.parse(dataStr);
 
-          if (event === 'model-chunk') {
+          if (event === 'search-started') {
+            setIsSearching(true);
+            setHasWebResults(false);
+          } else if (event === 'search-complete') {
+            setIsSearching(false);
+            setHasWebResults(data.hasResults);
+          } else if (event === 'model-chunk') {
             setResponses(prev => {
               const index = prev.findIndex(r => r.name === data.name);
               if (index === -1) return prev;
@@ -633,9 +658,65 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
 
   return (
     <div className="min-h-screen p-8">
-      <div className="mx-auto max-w-7xl">
+      {/* Toast notification */}
+      <Toast
+        message={toastMessage}
+        isVisible={showToast}
+        onClose={() => setShowToast(false)}
+      />
+
+      {/* Navigation Header */}
+      <nav className="fixed left-0 right-0 top-0 z-50 border-b border-zinc-200 bg-white/80 backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/80">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-8 py-4">
+          {/* Logo/Brand */}
+          <div className="flex items-center gap-2">
+            <span className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Deepest Research</span>
+          </div>
+
+          {/* Right side - Collection link and User menu */}
+          <div className="flex items-center gap-4">
+            {/* Collection link - only show if authenticated */}
+            {isAuthenticated && (
+              <a
+                href="/collection"
+                className="text-sm font-medium text-zinc-700 transition-colors hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
+              >
+                My Collection
+              </a>
+            )}
+
+            {/* User menu */}
+            {isAuthenticated ? (
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-zinc-600 dark:text-zinc-400">{userEmail}</span>
+                <button
+                  onClick={async () => {
+                    await supabase.auth.signOut();
+                    setIsAuthenticated(false);
+                    setUserEmail('');
+                    setUserName('');
+                    showToastNotification('Signed out successfully');
+                  }}
+                  className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                >
+                  Sign out
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowSignup(true)}
+                className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+              >
+                Sign in
+              </button>
+            )}
+          </div>
+        </div>
+      </nav>
+
+      <div className="mx-auto max-w-7xl pt-20">
         {/* Audio notification dropdown - top right corner */}
-        <div className="fixed top-4 right-4 z-50">
+        <div className="fixed top-20 right-4 z-50">
           <div className="sound-dropdown-container relative">
             <button
               onClick={() => setShowSoundDropdown(!showSoundDropdown)}
@@ -752,6 +833,19 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
               }}
             />
           </form>
+
+          {/* Get Started button - shows when query has text */}
+          {!loading && !loadingQuestions && !showQuestions && !responses.length && query.trim() && (
+            <div className="mt-4 flex justify-center">
+              <GetStartedButton
+                text="Get started"
+                onClick={() => {
+                  handleInitialSubmit({ preventDefault: () => {} } as any);
+                }}
+              />
+            </div>
+          )}
+
           {!loading && !loadingQuestions && !showQuestions && !responses.length && !query.trim() && (
             <div className="mt-3 flex gap-2">
               <button
@@ -945,10 +1039,10 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
         {loadingQuestions && (
           <div className="mb-12 flex flex-col items-center justify-center gap-4">
             <PixelatedCanvas
-              src="https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?w=400&h=300&fit=crop"
+              src="/assets/gpu.png"
               width={300}
               height={200}
-              cellSize={4}
+              cellSize={2}
               dotScale={0.85}
               shape="square"
               backgroundColor="transparent"
@@ -961,8 +1055,6 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
               jitterStrength={6}
               jitterSpeed={3}
               sampleAverage={true}
-              tintColor="#10b981"
-              tintStrength={0.3}
               className="rounded-lg"
             />
             <p className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -1032,9 +1124,13 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
         )}
 
         {loading && (
-          <div className="mb-8 text-center">
-            <p className="mb-2 text-lg font-medium">Querying {selectedModels.length} AI models in parallel...</p>
-            <p className="text-sm text-zinc-500">
+          <div className="mb-8 flex flex-col items-center justify-center">
+            <JumpingTextInstagram
+              text="Querying AI models in parallel..."
+              mode="character"
+              className="mb-2 text-lg font-medium text-zinc-900 dark:text-zinc-100"
+            />
+            <p className="max-w-2xl text-center text-sm text-zinc-500 dark:text-zinc-400">
               This may take 1-2 minutes. We&apos;re gathering comprehensive insights from {selectedModels.map(id => getModelInfo(id).name).join(', ')}.
             </p>
           </div>
@@ -1183,6 +1279,33 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                   ))}
                 </div>
               </div>
+            )}
+          </div>
+        )}
+
+        {/* Web search indicator */}
+        {(isSearching || hasWebResults) && (
+          <div className="mb-6 flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-900/30 dark:bg-emerald-950/20">
+            {isSearching ? (
+              <>
+                <div className="flex h-5 w-5 items-center justify-center">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent dark:border-emerald-400" />
+                </div>
+                <JumpingTextInstagram
+                  text="Searching the web for current information..."
+                  mode="character"
+                  className="text-sm font-medium text-emerald-700 dark:text-emerald-300"
+                />
+              </>
+            ) : (
+              <>
+                <svg className="h-5 w-5 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                  Web search complete - models have access to current information
+                </p>
+              </>
             )}
           </div>
         )}

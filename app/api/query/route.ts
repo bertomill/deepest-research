@@ -3,6 +3,37 @@ import { streamText } from 'ai';
 
 export const runtime = 'edge';
 
+// Tavily API search function
+async function searchWeb(query: string) {
+  try {
+    const response = await fetch('https://api.tavily.com/search', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        api_key: process.env.TAVILY_API_KEY,
+        query,
+        search_depth: 'advanced',
+        max_results: 5,
+        include_answer: true,
+        include_raw_content: false,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('Tavily API error:', response.statusText);
+      return null;
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Web search error:', error);
+    return null;
+  }
+}
+
 export async function POST(req: Request) {
   const { prompt, models: modelIds } = await req.json();
 
@@ -42,12 +73,33 @@ export async function POST(req: Request) {
         controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
       };
 
+      // Pre-fetch web search results for all models
+      sendEvent('search-started', {});
+      const webData = await searchWeb(prompt);
+      sendEvent('search-complete', { hasResults: !!webData });
+
+      // Build enhanced prompt with web search results
+      let enhancedPrompt = prompt;
+      if (webData && webData.results && webData.results.length > 0) {
+        enhancedPrompt = `${prompt}
+
+WEB SEARCH RESULTS (Current information from the web):
+
+${webData.answer ? `Summary: ${webData.answer}\n\n` : ''}${webData.results.map((result: any, i: number) => `
+[${i + 1}] ${result.title}
+URL: ${result.url}
+${result.content}
+`).join('\n')}
+
+Please use this current web information to provide an up-to-date, accurate answer to the user's question.`;
+      }
+
       // Query all models in parallel and stream results as they come in
       const responsePromises = models.map(async ({ name, model }) => {
         try {
           const result = await streamText({
             model,
-            prompt,
+            prompt: enhancedPrompt,
           });
 
           let fullText = '';
