@@ -20,7 +20,7 @@ interface InteractiveGlobeProps {
 }
 
 export default function InteractiveGlobe({ onLocationSelect }: InteractiveGlobeProps) {
-  const globeEl = useRef<any>();
+  const globeEl = useRef<any>(null);
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
