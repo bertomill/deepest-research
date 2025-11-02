@@ -129,10 +129,12 @@ export default function Home() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auth and save state
-  const [showSignup, setShowSignup] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState('');
   const [userName, setUserName] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
 
   // Load preferences from localStorage on mount
   useEffect(() => {
@@ -306,7 +308,8 @@ export default function Home() {
   // Handle save to collection
   const handleSaveToCollection = async () => {
     if (!isAuthenticated) {
-      setShowSignup(true);
+      setAuthMode('signup');
+      setShowAuthModal(true);
       return;
     }
 
@@ -316,7 +319,8 @@ export default function Home() {
 
       if (!user) {
         showToastNotification('Please sign in to save research');
-        setShowSignup(true);
+        setAuthMode('signin');
+        setShowAuthModal(true);
         return;
       }
 
@@ -345,10 +349,45 @@ export default function Home() {
     }
   };
 
+  // Handle sign in
+  const handleSignIn = async () => {
+    if (!userEmail || !authPassword) {
+      showToastNotification('Please fill in all fields');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: userEmail,
+        password: authPassword,
+      });
+
+      if (error) {
+        showToastNotification(`Error: ${error.message}`);
+        return;
+      }
+
+      if (data.user) {
+        setIsAuthenticated(true);
+        setShowAuthModal(false);
+        setAuthPassword('');
+        showToastNotification('Signed in successfully!');
+      }
+    } catch (error) {
+      console.error('Sign in error:', error);
+      showToastNotification('Failed to sign in. Please try again.');
+    }
+  };
+
   // Handle signup
   const handleSignup = async () => {
-    if (!userName || !userEmail) {
+    if (!userName || !userEmail || !authPassword) {
       showToastNotification('Please fill in all fields');
+      return;
+    }
+
+    if (authPassword.length < 6) {
+      showToastNotification('Password must be at least 6 characters');
       return;
     }
 
@@ -356,7 +395,7 @@ export default function Home() {
       // Sign up with Supabase Auth
       const { data, error } = await supabase.auth.signUp({
         email: userEmail,
-        password: Math.random().toString(36).slice(-8) + 'A1!', // Generate random password
+        password: authPassword,
         options: {
           data: {
             name: userName,
@@ -371,11 +410,9 @@ export default function Home() {
 
       if (data.user) {
         setIsAuthenticated(true);
-        setShowSignup(false);
-
-        // After signup, save the research
-        await handleSaveToCollection();
-        showToastNotification('Account created and research saved to your collection!');
+        setShowAuthModal(false);
+        setAuthPassword('');
+        showToastNotification('Account created successfully!');
       }
     } catch (error) {
       console.error('Signup error:', error);
@@ -818,7 +855,10 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
               </>
             ) : (
               <button
-                onClick={() => setShowSignup(true)}
+                onClick={() => {
+                  setAuthMode('signin');
+                  setShowAuthModal(true);
+                }}
                 className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
               >
                 Sign in
@@ -900,7 +940,8 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                 ) : (
                   <button
                     onClick={() => {
-                      setShowSignup(true);
+                      setAuthMode('signin');
+                      setShowAuthModal(true);
                       setShowMobileMenu(false);
                     }}
                     className="flex items-center gap-3 px-8 py-4 text-base font-medium text-zinc-900 transition-colors hover:bg-zinc-50 dark:text-zinc-100 dark:hover:bg-zinc-800"
@@ -1650,13 +1691,13 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
           </>
         )}
 
-        {/* Signup Modal - Mobile Optimized */}
-        {showSignup && (
+        {/* Auth Modal - Mobile Optimized */}
+        {showAuthModal && (
           <>
             {/* Backdrop */}
             <div
               className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity"
-              onClick={() => setShowSignup(false)}
+              onClick={() => setShowAuthModal(false)}
             />
 
             {/* Modal - Bottom sheet on mobile, centered on desktop */}
@@ -1664,9 +1705,11 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
               <div className="w-full rounded-t-2xl bg-white p-6 shadow-2xl transition-transform md:w-auto md:min-w-[400px] md:rounded-2xl dark:bg-zinc-900">
                 {/* Header */}
                 <div className="mb-6 flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">Save to Collection</h3>
+                  <h3 className="text-lg font-semibold">
+                    {authMode === 'signin' ? 'Sign In' : 'Create Account'}
+                  </h3>
                   <button
-                    onClick={() => setShowSignup(false)}
+                    onClick={() => setShowAuthModal(false)}
                     className="rounded-full p-1 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
                   >
                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1675,24 +1718,28 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                   </button>
                 </div>
 
-                <p className="mb-6 text-sm text-zinc-600 dark:text-zinc-400">
-                  Create an account to save your research to your personal collection
-                </p>
+                {authMode === 'signup' && (
+                  <p className="mb-6 text-sm text-zinc-600 dark:text-zinc-400">
+                    Create an account to save your research to your personal collection
+                  </p>
+                )}
 
                 {/* Form */}
                 <div className="space-y-4">
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                      Name
-                    </label>
-                    <input
-                      type="text"
-                      value={userName}
-                      onChange={(e) => setUserName(e.target.value)}
-                      placeholder="John Doe"
-                      className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 text-base outline-none transition-colors focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-600 dark:bg-zinc-800 dark:focus:border-zinc-100"
-                    />
-                  </div>
+                  {authMode === 'signup' && (
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                        Name
+                      </label>
+                      <input
+                        type="text"
+                        value={userName}
+                        onChange={(e) => setUserName(e.target.value)}
+                        placeholder="John Doe"
+                        className="w-full rounded-3xl border border-zinc-300 bg-white px-4 py-3 text-base outline-none transition-colors focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-600 dark:bg-zinc-800 dark:focus:border-zinc-100"
+                      />
+                    </div>
+                  )}
 
                   <div>
                     <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
@@ -1703,20 +1750,46 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                       value={userEmail}
                       onChange={(e) => setUserEmail(e.target.value)}
                       placeholder="john@example.com"
-                      className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 text-base outline-none transition-colors focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-600 dark:bg-zinc-800 dark:focus:border-zinc-100"
+                      className="w-full rounded-3xl border border-zinc-300 bg-white px-4 py-3 text-base outline-none transition-colors focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-600 dark:bg-zinc-800 dark:focus:border-zinc-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      value={authPassword}
+                      onChange={(e) => setAuthPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full rounded-3xl border border-zinc-300 bg-white px-4 py-3 text-base outline-none transition-colors focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-600 dark:bg-zinc-800 dark:focus:border-zinc-100"
                     />
                   </div>
 
                   <button
-                    onClick={handleSignup}
-                    className="w-full rounded-lg bg-zinc-900 px-4 py-3 text-base font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                    onClick={authMode === 'signin' ? handleSignIn : handleSignup}
+                    className="w-full rounded-full bg-zinc-900 px-4 py-3 text-base font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
                   >
-                    Create Account & Save
+                    {authMode === 'signin' ? 'Sign In' : 'Create Account'}
                   </button>
 
-                  <p className="text-center text-xs text-zinc-500 dark:text-zinc-400">
-                    By signing up, you agree to our Terms of Service and Privacy Policy
-                  </p>
+                  <div className="text-center">
+                    <button
+                      onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}
+                      className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                    >
+                      {authMode === 'signin'
+                        ? "Don't have an account? Sign up"
+                        : 'Already have an account? Sign in'}
+                    </button>
+                  </div>
+
+                  {authMode === 'signup' && (
+                    <p className="text-center text-xs text-zinc-500 dark:text-zinc-400">
+                      By signing up, you agree to our Terms of Service and Privacy Policy
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
