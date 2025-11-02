@@ -738,10 +738,10 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
 
       {/* Floating Navigation */}
       <nav className="fixed left-1/2 top-4 z-50 w-[calc(100%-2rem)] max-w-fit -translate-x-1/2">
-        <div className="flex items-center justify-between gap-3 whitespace-nowrap rounded-full border border-zinc-200 bg-white/90 px-4 py-3 shadow-lg backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/90 md:gap-6 md:px-6">
+        <div className="flex items-center justify-between gap-3 whitespace-nowrap rounded-full border border-zinc-700 bg-zinc-900/90 px-4 py-3 shadow-lg backdrop-blur-md md:gap-6 md:px-6">
           {/* Logo/Brand */}
           <div className="flex items-center gap-2">
-            <span className="text-base font-bold text-zinc-900 dark:text-zinc-100 md:text-xl">Deepest Research</span>
+            <span className="text-base font-bold text-zinc-100 md:text-xl">Deepest Research</span>
           </div>
 
           {/* Desktop Menu - Hidden on mobile */}
@@ -971,7 +971,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                 }
               }}
               placeholder="What would you like to research?"
-              className="w-full resize-none overflow-hidden border-b-2 border-zinc-300 bg-transparent py-4 text-2xl outline-none transition-colors focus:border-zinc-900 dark:border-zinc-700 dark:focus:border-zinc-100 md:text-3xl"
+              className="w-full resize-none overflow-hidden border-b-2 border-zinc-700 bg-transparent py-4 text-2xl text-zinc-100 placeholder:text-zinc-400 outline-none transition-colors focus:border-zinc-100 md:text-3xl"
               disabled={loading || loadingQuestions}
               rows={1}
               style={{
@@ -1327,12 +1327,12 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
         {!loading && !loadingQuestions && !showQuestions && !responses.length && (showPromptPreview || (!query.trim())) && (
           <div className={`mb-8 relative transition-all ${showBench ? 'mr-80' : ''}`}>
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100">
+              <h3 className="text-lg font-medium text-zinc-100">
                 {showPromptPreview ? 'Choose Your Research Roster' : 'Research Team'}
               </h3>
               <button
                 onClick={() => setShowBench(!showBench)}
-                className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+                className="text-sm text-zinc-400 hover:text-zinc-100"
               >
                 {showBench ? 'Hide Bench' : 'Show Bench'}
               </button>
@@ -1391,8 +1391,8 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                           />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="mb-0.5 text-[10px] text-zinc-500 dark:text-zinc-400">{modelInfo.provider}</div>
-                          <div className="text-xs font-medium truncate">{modelInfo.name}</div>
+                          <div className="mb-0.5 text-[10px] text-zinc-400">{modelInfo.provider}</div>
+                          <div className="text-xs font-medium text-zinc-100 truncate">{modelInfo.name}</div>
                         </div>
                       </div>
                     </div>
