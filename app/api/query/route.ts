@@ -59,7 +59,7 @@ export async function POST(req: Request) {
     'xai/grok-4-fast-non-reasoning': 'Grok 4 Fast Non-Reasoning',
     'deepseek/deepseek-v3': 'DeepSeek V3',
     'deepseek/deepseek-r1': 'DeepSeek R1',
-    'meta/llama-4-maverick': 'Llama 4 Maverick',
+    'meta/llama-3.3-70b': 'Llama 3.3 70B',
   };
 
   // Build models array from IDs

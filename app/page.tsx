@@ -65,7 +65,7 @@ const AVAILABLE_MODELS = [
   { id: 'xai/grok-4-fast-non-reasoning', name: 'Grok 4 Fast Non-Reasoning', provider: 'xAI' },
   { id: 'deepseek/deepseek-v3', name: 'DeepSeek V3', provider: 'DeepSeek' },
   { id: 'deepseek/deepseek-r1', name: 'DeepSeek R1', provider: 'DeepSeek' },
-  { id: 'meta/llama-4-maverick', name: 'Llama 4 Maverick', provider: 'Meta' },
+  { id: 'meta/llama-3.3-70b', name: 'Llama 3.3 70B', provider: 'Meta' },
 ];
 
 const DEFAULT_MODELS = [
@@ -1699,12 +1699,12 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
         {showQuestions && questions.length > 0 && (
           <div className="mb-12">
             <div className="mb-6 flex items-center gap-2">
-              <span className="text-sm text-zinc-500">
+              <span className="text-sm text-zinc-400">
                 {currentQuestionIndex + 1} / {questions.length}
               </span>
-              <div className="h-1 flex-1 rounded-full bg-zinc-200 dark:bg-zinc-800">
+              <div className="h-1 flex-1 rounded-full bg-zinc-800">
                 <div
-                  className="h-1 rounded-full bg-zinc-900 transition-all dark:bg-zinc-100"
+                  className="h-1 rounded-full bg-zinc-100 transition-all"
                   style={{
                     width: `${((currentQuestionIndex + 1) / questions.length) * 100}%`,
                   }}
@@ -1716,7 +1716,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
               <JumpingTextInstagram
                 text={questions[currentQuestionIndex]}
                 mode="character"
-                className="mb-4 block text-xl font-medium text-zinc-900 dark:text-zinc-100"
+                className="mb-4 block text-xl font-medium text-zinc-100"
               />
               <input
                 type="text"
@@ -1732,7 +1732,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                   }
                 }}
                 placeholder="Type your answer..."
-                className="w-full border-b-2 border-zinc-300 bg-transparent py-3 text-lg outline-none transition-colors focus:border-zinc-900 dark:border-zinc-700 dark:focus:border-zinc-100"
+                className="w-full border-b-2 border-zinc-700 bg-transparent py-3 text-lg text-zinc-100 placeholder:text-zinc-500 outline-none transition-colors focus:border-zinc-100"
                 autoFocus
               />
             </div>
@@ -1741,13 +1741,13 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
               <button
                 onClick={handlePrevQuestion}
                 disabled={currentQuestionIndex === 0}
-                className="text-sm text-zinc-600 transition-opacity hover:text-zinc-900 disabled:opacity-30 dark:text-zinc-400 dark:hover:text-zinc-100"
+                className="text-sm text-zinc-400 transition-opacity hover:text-zinc-100 disabled:opacity-30"
               >
                 ← Previous
               </button>
               <button
                 onClick={handleNextQuestion}
-                className="text-sm font-medium text-zinc-900 dark:text-zinc-100"
+                className="text-sm font-medium text-zinc-100"
               >
                 {currentQuestionIndex === questions.length - 1
                   ? 'Start Research →'
