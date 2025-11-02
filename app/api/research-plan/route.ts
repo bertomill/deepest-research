@@ -1,12 +1,13 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { createGateway } from '@ai-sdk/gateway';
+import { generateText } from 'ai';
 
 export const runtime = 'edge';
 
 export async function POST(req: Request) {
   const { query, answers } = await req.json();
 
-  const anthropic = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY,
+  const gateway = createGateway({
+    apiKey: process.env.AI_GATEWAY_API_KEY,
   });
 
   // Build context from answers if provided
@@ -63,21 +64,12 @@ Example for "How do I customize Shopify sites?":
 Now create the research plan:`;
 
   try {
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 2000,
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
+    const result = await generateText({
+      model: gateway('anthropic/claude-sonnet-4.5'),
+      prompt: prompt,
     });
 
-    const text = response.content
-      .filter(block => block.type === 'text')
-      .map(block => ('text' in block ? block.text : ''))
-      .join('\n');
+    const text = result.text;
 
     // Extract JSON from response
     const jsonMatch = text.match(/\{[\s\S]*\}/);

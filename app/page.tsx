@@ -116,6 +116,8 @@ export default function Home() {
   }>>([]);
   const [taskAssignments, setTaskAssignments] = useState<Record<string, string[]>>({});
   const [loadingResearchPlan, setLoadingResearchPlan] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [showModelPickerForTask, setShowModelPickerForTask] = useState<string | null>(null);
 
   // Audio notification state
   const [audioEnabled, setAudioEnabled] = useState(true);
@@ -644,6 +646,22 @@ export default function Home() {
           setResearchTasks(data.tasks);
           setShowResearchPlan(true);
 
+          // Auto-assign selected models to tasks evenly
+          const assignments: Record<string, string[]> = {};
+          const tasksCount = data.tasks.length;
+
+          selectedModels.forEach((modelId, index) => {
+            const taskIndex = index % tasksCount;
+            const taskId = data.tasks[taskIndex].id;
+
+            if (!assignments[taskId]) {
+              assignments[taskId] = [];
+            }
+            assignments[taskId].push(modelId);
+          });
+
+          setTaskAssignments(assignments);
+
           // Build enriched prompt for later
           const enrichedPrompt = `${query}
 
@@ -682,6 +700,22 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
 
       if (data.tasks && data.tasks.length > 0) {
         setResearchTasks(data.tasks);
+
+        // Auto-assign selected models to tasks evenly
+        const assignments: Record<string, string[]> = {};
+        const tasksCount = data.tasks.length;
+
+        selectedModels.forEach((modelId, index) => {
+          const taskIndex = index % tasksCount;
+          const taskId = data.tasks[taskIndex].id;
+
+          if (!assignments[taskId]) {
+            assignments[taskId] = [];
+          }
+          assignments[taskId].push(modelId);
+        });
+
+        setTaskAssignments(assignments);
         showToastNotification('Research plan regenerated!');
       }
     } catch (error) {
@@ -698,6 +732,20 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
 
     // Start research directly with task-based prompts
     handleStartResearchWithTasks(taskAssignments);
+  };
+
+  const handleAddTask = () => {
+    if (!newTaskTitle.trim()) return;
+
+    const newTask = {
+      id: `task-${Date.now()}`,
+      title: newTaskTitle.trim(),
+      description: '',
+      prompt: newTaskTitle.trim(),
+    };
+
+    setResearchTasks([...researchTasks, newTask]);
+    setNewTaskTitle('');
   };
 
   const handleStartResearchWithTasks = async (assignments: Record<string, string[]>) => {
@@ -1221,7 +1269,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
           </form>
 
           {/* Get Started button - shows when query has text and before questions start */}
-          {!loading && !loadingQuestions && !showQuestions && !showPromptPreview && !responses.length && query.trim() && (
+          {!loading && !loadingQuestions && !loadingResearchPlan && !showQuestions && !showResearchPlan && !showPromptPreview && !responses.length && query.trim() && (
             <div className="mt-4 flex justify-center">
               <GetStartedButton
                 text="Get started"
@@ -1565,14 +1613,14 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
         {/* Research Plan Review */}
         {showResearchPlan && researchTasks.length > 0 && (
           <div className="mb-12">
-            <div className="mb-6">
-              <h2 className="mb-2 text-2xl font-semibold text-zinc-100">Research Strategy</h2>
+            <div className="mb-4">
+              <h2 className="mb-1 text-2xl font-semibold text-zinc-100">Research Strategy</h2>
               <p className="text-sm text-zinc-400">
-                Drag models from your research team below to assign them to specific tasks.
+                Drag models to tasks
               </p>
             </div>
 
-            <div className="mb-6 space-y-4">
+            <div className="mb-6 space-y-3">
               {researchTasks.map((task, index) => {
                 const assignedModels = taskAssignments[task.id] || [];
                 return (
@@ -1600,45 +1648,56 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                         }
                       }
                     }}
-                    className="rounded-3xl border border-zinc-700/50 bg-linear-to-br from-zinc-800/80 to-zinc-900/80 p-6 backdrop-blur-md transition-all"
+                    className="group/task relative rounded-2xl border border-zinc-700/50 bg-linear-to-br from-zinc-800/80 to-zinc-900/80 p-4 backdrop-blur-md transition-all"
                   >
-                    <div className="mb-3 flex items-start gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-500/20 text-blue-400">
-                        <span className="text-lg font-semibold">{index + 1}</span>
+                    <button
+                      onClick={() => {
+                        const newTasks = researchTasks.filter(t => t.id !== task.id);
+                        setResearchTasks(newTasks);
+                        const newAssignments = { ...taskAssignments };
+                        delete newAssignments[task.id];
+                        setTaskAssignments(newAssignments);
+                      }}
+                      className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500/80 text-white opacity-100 transition-opacity hover:bg-red-600 md:opacity-0 md:group-hover/task:opacity-100"
+                    >
+                      ×
+                    </button>
+                    <div className="mb-3 flex items-center gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500/20 text-blue-400">
+                        <span className="text-base font-semibold">{index + 1}</span>
                       </div>
                       <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-zinc-100">{task.title}</h3>
-                        <p className="mt-1 text-sm text-zinc-400">{task.description}</p>
+                        <h3 className="text-base font-semibold text-zinc-100">{task.title}</h3>
                       </div>
-                    </div>
-                    <div className="rounded-2xl bg-zinc-900/50 p-4 mb-4">
-                      <p className="text-xs font-medium text-zinc-500 mb-2">RESEARCH FOCUS:</p>
-                      <p className="text-sm text-zinc-300">{task.prompt}</p>
                     </div>
 
                     {/* Assigned Models */}
-                    <div className="rounded-2xl border border-zinc-700/30 bg-zinc-900/30 p-4">
-                      <p className="text-xs font-medium text-zinc-500 mb-3">ASSIGNED MODELS:</p>
+                    <div className="relative rounded-xl border border-zinc-700/30 bg-zinc-900/30 p-3">
                       {assignedModels.length === 0 ? (
-                        <p className="text-sm text-zinc-600 italic">Drop models here to assign them to this task</p>
+                        <button
+                          onClick={() => setShowModelPickerForTask(showModelPickerForTask === task.id ? null : task.id)}
+                          className="w-full text-left text-xs text-zinc-600 italic hover:text-zinc-500 transition-colors"
+                        >
+                          {showModelPickerForTask === task.id ? 'Select a model' : 'Tap to add models'}
+                        </button>
                       ) : (
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-1.5">
                           {assignedModels.map((modelId) => {
                             const modelInfo = getModelInfo(modelId);
                             const providerStyle = PROVIDER_STYLES[modelInfo.provider];
                             return (
                               <div
                                 key={modelId}
-                                className="group relative flex items-center gap-2 rounded-full border border-zinc-700/50 bg-linear-to-br from-zinc-800/80 to-zinc-900/80 px-3 py-1.5 text-sm backdrop-blur-md"
+                                className="group relative flex items-center gap-1.5 rounded-full border border-zinc-700/50 bg-linear-to-br from-zinc-800/80 to-zinc-900/80 px-2.5 py-1 text-xs backdrop-blur-md"
                               >
                                 {providerStyle?.logo ? (
                                   <img
                                     src={providerStyle.logo}
                                     alt={modelInfo.provider}
-                                    className="h-4 w-4 rounded object-contain"
+                                    className="h-3.5 w-3.5 rounded object-contain"
                                   />
                                 ) : (
-                                  <span className="flex h-4 w-4 items-center justify-center rounded bg-zinc-700 text-xs">
+                                  <span className="flex h-3.5 w-3.5 items-center justify-center rounded bg-zinc-700 text-xs">
                                     {modelInfo.provider.charAt(0)}
                                   </span>
                                 )}
@@ -1652,19 +1711,93 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                                     }
                                     setTaskAssignments(newAssignments);
                                   }}
-                                  className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500/80 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100"
+                                  className="ml-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500/80 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100"
                                 >
                                   ×
                                 </button>
                               </div>
                             );
                           })}
+                          <button
+                            onClick={() => setShowModelPickerForTask(showModelPickerForTask === task.id ? null : task.id)}
+                            className="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-zinc-700/50 text-zinc-600 hover:border-zinc-600 hover:text-zinc-500 transition-colors"
+                          >
+                            +
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Model Picker Dropdown */}
+                      {showModelPickerForTask === task.id && (
+                        <div className="absolute left-0 right-0 top-full mt-2 z-50 rounded-xl border border-zinc-700/50 bg-zinc-900/95 backdrop-blur-md p-2 shadow-xl max-h-64 overflow-y-auto">
+                          <div className="space-y-1">
+                            {selectedModels.filter(modelId => !assignedModels.includes(modelId)).length === 0 ? (
+                              <p className="text-xs text-zinc-600 italic p-2">All models assigned</p>
+                            ) : (
+                              selectedModels.filter(modelId => !assignedModels.includes(modelId)).map(modelId => {
+                                const modelInfo = getModelInfo(modelId);
+                                const providerStyle = PROVIDER_STYLES[modelInfo.provider];
+                                return (
+                                  <button
+                                    key={modelId}
+                                    onClick={() => {
+                                      const newAssignments = { ...taskAssignments };
+                                      if (!newAssignments[task.id]) {
+                                        newAssignments[task.id] = [];
+                                      }
+                                      newAssignments[task.id].push(modelId);
+                                      setTaskAssignments(newAssignments);
+                                      setShowModelPickerForTask(null);
+                                    }}
+                                    className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-zinc-100 hover:bg-zinc-800/50 transition-colors"
+                                  >
+                                    {providerStyle?.logo ? (
+                                      <img
+                                        src={providerStyle.logo}
+                                        alt={modelInfo.provider}
+                                        className="h-4 w-4 rounded object-contain"
+                                      />
+                                    ) : (
+                                      <span className="flex h-4 w-4 items-center justify-center rounded bg-zinc-700 text-xs">
+                                        {modelInfo.provider.charAt(0)}
+                                      </span>
+                                    )}
+                                    <span>{modelInfo.name}</span>
+                                  </button>
+                                );
+                              })
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
                   </div>
                 );
               })}
+
+              {/* Add New Task */}
+              <div className="rounded-2xl border border-dashed border-zinc-700/50 bg-zinc-900/30 p-4">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newTaskTitle}
+                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleAddTask();
+                      }
+                    }}
+                    placeholder="Add custom research task..."
+                    className="flex-1 rounded-lg border border-zinc-700/50 bg-zinc-900/50 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 outline-none transition-colors focus:border-zinc-600"
+                  />
+                  <button
+                    onClick={handleAddTask}
+                    className="rounded-lg border border-zinc-700/50 bg-linear-to-br from-green-500/10 to-zinc-800/80 px-4 py-2 text-sm font-medium text-zinc-100 backdrop-blur-md transition-all hover:border-zinc-600/60 hover:from-green-500/20"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
@@ -1722,14 +1855,28 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
         )}
 
         {loading && (
-          <div className="mb-8 flex flex-col items-center justify-center">
-            <JumpingTextInstagram
-              text="Querying AI models in parallel..."
-              mode="character"
-              className="mb-2 text-lg font-medium text-zinc-900 dark:text-zinc-100"
+          <div className="mb-8 flex flex-col items-center justify-center gap-4">
+            <PixelatedCanvas
+              src="/assets/space-satelite.png"
+              width={600}
+              height={400}
+              cellSize={2}
+              dotScale={0.85}
+              shape="square"
+              backgroundColor="transparent"
+              dropoutStrength={0.3}
+              interactive={true}
+              distortionStrength={5}
+              distortionRadius={100}
+              distortionMode="swirl"
+              followSpeed={0.15}
+              jitterStrength={6}
+              jitterSpeed={3}
+              sampleAverage={true}
+              className="rounded-3xl"
             />
-            <p className="max-w-2xl text-center text-sm text-zinc-500 dark:text-zinc-400">
-              This may take 1-2 minutes. We&apos;re gathering comprehensive insights from {selectedModels.map(id => getModelInfo(id).name).join(', ')}.
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              Gathering comprehensive insights...
             </p>
           </div>
         )}
