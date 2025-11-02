@@ -1,5 +1,5 @@
 import { createGateway } from '@ai-sdk/gateway';
-import { streamText } from 'ai';
+import { generateText } from 'ai';
 
 export const runtime = 'edge';
 
@@ -26,12 +26,12 @@ Return ONLY a JSON array of short questions. Example:
 No extra text.`;
 
   try {
-    const result = await streamText({
+    const result = await generateText({
       model: gateway('anthropic/claude-sonnet-4.5'),
       prompt: questionPrompt,
     });
 
-    const text = await result.text;
+    const text = result.text;
 
     // Strip markdown code blocks if present
     let cleanedText = text.trim();

@@ -1151,7 +1151,14 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
       {/* Mobile Top Bar - Logo and User Icon */}
       <nav className="fixed left-0 right-0 top-0 z-50 md:hidden">
         <div className="flex items-center justify-between px-4 py-4">
-          <span className="text-lg font-bold text-zinc-100">Deepest Research</span>
+          <div className="flex items-center gap-3">
+            <img
+              src="/assets/deepestresearch-logo-white.png"
+              alt="Deepest Research"
+              className="h-8 w-8"
+            />
+            <span className="text-lg font-bold text-zinc-100">Deepest Research</span>
+          </div>
           {isAuthenticated && (
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-800 text-base font-medium text-zinc-100">
               {userName ? userName.charAt(0).toUpperCase() : userEmail.charAt(0).toUpperCase()}
@@ -1162,7 +1169,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
 
       {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-zinc-800 bg-black/95 backdrop-blur-xl md:hidden">
-        <div className="flex items-center justify-center gap-8 px-4 py-3">
+        <div className="flex items-center justify-evenly px-4 py-3">
           <a
             href="/"
             className="flex flex-col items-center gap-1"
