@@ -46,6 +46,7 @@ const PROVIDER_STYLES: Record<string, { logo: string; bg: string }> = {
   'xAI': { logo: '/logos/grok-logo.png', bg: '#F5F5F5' },
   'DeepSeek': { logo: '/logos/deepseek-logo.png', bg: '#F0F1FF' },
   'Meta': { logo: '/logos/meta-logo.png', bg: '#F0F7FF' },
+  'Mistral': { logo: '/logos/mistral-logo.png', bg: '#FFF5F0' },
 };
 
 // Available models from Vercel AI Gateway
@@ -66,6 +67,7 @@ const AVAILABLE_MODELS = [
   { id: 'deepseek/deepseek-v3', name: 'DeepSeek V3', provider: 'DeepSeek' },
   { id: 'deepseek/deepseek-r1', name: 'DeepSeek R1', provider: 'DeepSeek' },
   { id: 'meta/llama-3.1-70b', name: 'Llama 3.1 70B', provider: 'Meta' },
+  { id: 'mistral/mistral-small', name: 'Mistral Small', provider: 'Mistral' },
 ];
 
 const DEFAULT_MODELS = [
@@ -247,6 +249,26 @@ export default function Home() {
       textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 192) + 'px';
     }
   }, [query]);
+
+  // Clean up invalid model IDs from task assignments
+  useEffect(() => {
+    const hasInvalidModels = Object.values(taskAssignments).some(models =>
+      models.some(modelId => !AVAILABLE_MODELS.some(m => m.id === modelId))
+    );
+
+    if (hasInvalidModels) {
+      const cleanedAssignments: Record<string, string[]> = {};
+      Object.entries(taskAssignments).forEach(([taskId, models]) => {
+        const validModels = models.filter(modelId =>
+          AVAILABLE_MODELS.some(m => m.id === modelId)
+        );
+        if (validModels.length > 0) {
+          cleanedAssignments[taskId] = validModels;
+        }
+      });
+      setTaskAssignments(cleanedAssignments);
+    }
+  }, [taskAssignments]);
 
   // Helper function to show toast notification
   const showToastNotification = (message: string) => {
@@ -1815,7 +1837,10 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
 
             <div className="mb-6 space-y-3">
               {researchTasks.map((task, index) => {
-                const assignedModels = taskAssignments[task.id] || [];
+                // Filter out invalid model IDs from assignments
+                const assignedModels = (taskAssignments[task.id] || []).filter(modelId =>
+                  AVAILABLE_MODELS.some(m => m.id === modelId)
+                );
                 return (
                   <div
                     key={task.id}

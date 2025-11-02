@@ -60,6 +60,7 @@ export async function POST(req: Request) {
     'deepseek/deepseek-v3': 'DeepSeek V3',
     'deepseek/deepseek-r1': 'DeepSeek R1',
     'meta/llama-3.1-70b': 'Llama 3.1 70B',
+    'mistral/mistral-small': 'Mistral Small',
   };
 
   // Build models array from IDs
