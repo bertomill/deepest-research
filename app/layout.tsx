@@ -33,12 +33,25 @@ export const metadata: Metadata = {
       {
         url: "/assets/deepestresearch-logo-white.png",
         type: "image/png",
+        sizes: "any",
+      },
+      {
+        url: "/favicon.ico",
+        type: "image/x-icon",
+        sizes: "any",
+      },
+    ],
+    shortcut: [
+      {
+        url: "/assets/deepestresearch-logo-white.png",
+        type: "image/png",
       },
     ],
     apple: [
       {
         url: "/assets/deepestresearch-logo-white.png",
         type: "image/png",
+        sizes: "180x180",
       },
     ],
   },
