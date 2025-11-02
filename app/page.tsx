@@ -474,15 +474,36 @@ export default function Home() {
     );
 
     try {
-      const res = await fetch('/api/location-news', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ location }),
-      });
+      // Call both APIs in parallel
+      const [newsRes, ideasRes] = await Promise.all([
+        fetch('/api/location-news', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ location }),
+        }),
+        fetch('/api/location-ideas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            city: location.city,
+            country: location.country,
+            lat: location.lat,
+            lng: location.lng,
+          }),
+        }),
+      ]);
 
-      const data = await res.json();
-      setLocationSuggestions(data.suggestions || []);
-      setLocationNews(data.news || []);
+      const newsData = await newsRes.json();
+      const ideasData = await ideasRes.json();
+
+      // Combine suggestions from both APIs
+      const allSuggestions = [
+        ...(ideasData.ideas || []),
+        ...(newsData.suggestions || []),
+      ];
+
+      setLocationSuggestions(allSuggestions);
+      setLocationNews(newsData.news || []);
     } catch (error) {
       console.error('Error fetching location data:', error);
     } finally {
