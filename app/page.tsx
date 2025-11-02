@@ -41,7 +41,7 @@ interface NewsArticle {
 // Provider logos and colors
 const PROVIDER_STYLES: Record<string, { logo: string; bg: string }> = {
   'Anthropic': { logo: '/logos/anthropic-logo.png', bg: '#FFF5F2' },
-  'OpenAI': { logo: 'https://logo.clearbit.com/openai.com', bg: '#F0FFF4' },
+  'OpenAI': { logo: '/logos/chatgpt-logo.png', bg: '#F0FFF4' },
   'Google': { logo: '/logos/google-logo.png', bg: '#F0F7FF' },
   'xAI': { logo: '/logos/grok-logo.png', bg: '#F5F5F5' },
   'DeepSeek': { logo: '/logos/deepseek-logo.png', bg: '#F0F1FF' },
@@ -65,7 +65,7 @@ const AVAILABLE_MODELS = [
   { id: 'xai/grok-4-fast-non-reasoning', name: 'Grok 4 Fast Non-Reasoning', provider: 'xAI' },
   { id: 'deepseek/deepseek-v3', name: 'DeepSeek V3', provider: 'DeepSeek' },
   { id: 'deepseek/deepseek-r1', name: 'DeepSeek R1', provider: 'DeepSeek' },
-  { id: 'meta/llama-3.3-70b', name: 'Llama 3.3 70B', provider: 'Meta' },
+  { id: 'meta/llama-3.1-70b', name: 'Llama 3.1 70B', provider: 'Meta' },
 ];
 
 const DEFAULT_MODELS = [
@@ -169,13 +169,26 @@ export default function Home() {
 
     if (savedEnabled !== null) {
       setAudioEnabled(savedEnabled === 'true');
+    } else {
+      // Set default to true if no preference saved
+      localStorage.setItem('audioNotificationsEnabled', 'true');
     }
     if (savedSound !== null) {
       setSelectedSound(savedSound);
     }
     if (savedModels !== null) {
       try {
-        setSelectedModels(JSON.parse(savedModels));
+        const parsed = JSON.parse(savedModels);
+        // Filter out any model IDs that are no longer in AVAILABLE_MODELS
+        const validModels = parsed.filter((modelId: string) =>
+          AVAILABLE_MODELS.some(m => m.id === modelId)
+        );
+        // Use valid models if we have any, otherwise fall back to defaults
+        if (validModels.length > 0) {
+          setSelectedModels(validModels);
+        } else {
+          setSelectedModels(DEFAULT_MODELS);
+        }
       } catch {
         setSelectedModels(DEFAULT_MODELS);
       }
@@ -1013,6 +1026,11 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
         <div className="flex items-center justify-between gap-3 whitespace-nowrap rounded-full border border-zinc-700 bg-zinc-900/90 px-4 py-3 font-[family-name:var(--font-inter)] shadow-lg backdrop-blur-md md:gap-6 md:px-6">
           {/* Logo/Brand */}
           <div className="flex items-center gap-2">
+            <img
+              src="/assets/deepestresearch-logo-white.png"
+              alt="Deepest Research"
+              className="h-6 w-6 md:h-8 md:w-8"
+            />
             <span className="text-base font-bold text-zinc-100 md:text-xl">Deepest Research</span>
           </div>
 
@@ -2033,8 +2051,8 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
           <div className="mb-8 flex flex-col items-center justify-center gap-4">
             <PixelatedCanvas
               src="/assets/space-satelite.png"
-              width={600}
-              height={400}
+              width={400}
+              height={267}
               cellSize={2}
               dotScale={0.85}
               shape="square"
