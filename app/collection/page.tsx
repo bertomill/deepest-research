@@ -32,6 +32,13 @@ export default function CollectionPage() {
 
   const loadSavedResearch = async () => {
     try {
+      // Check if Supabase is properly configured
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://placeholder.supabase.co') {
+        console.warn('Supabase not configured');
+        setLoading(false);
+        return;
+      }
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
