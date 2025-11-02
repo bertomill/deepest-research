@@ -12,19 +12,18 @@ export async function POST(req: Request) {
 
   const questionPrompt = `You are a research assistant. A user wants to research: "${query}"
 
-Generate 3-4 clarifying questions that would help refine this research query and get better, more targeted results.
+Generate 4 brief, focused clarifying questions (8-12 words each) to refine this query.
 
-Focus on:
-- Timeframe (if relevant)
-- Specific aspects or focus areas
-- Depth vs breadth
-- Target audience or use case
-- Geographic scope (if relevant)
+Keep questions simple and direct. Focus on:
+- Timeframe
+- Specific focus
+- Use case
+- Scope
 
-Return ONLY a JSON array of questions, each as a simple string. Example format:
-["Question 1?", "Question 2?", "Question 3?"]
+Return ONLY a JSON array of short questions. Example:
+["What timeframe interests you?", "Which aspect matters most?", "Who is the target audience?"]
 
-Do not include any other text or explanation.`;
+No extra text.`;
 
   try {
     const result = await streamText({

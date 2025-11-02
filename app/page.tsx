@@ -105,6 +105,10 @@ export default function Home() {
 
   // Research Camera state
   const [showResearchCamera, setShowResearchCamera] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Research Planning state
   const [showResearchPlan, setShowResearchPlan] = useState(false);
@@ -748,6 +752,64 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
     setNewTaskTitle('');
   };
 
+  // Camera handlers
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      });
+      setCameraStream(stream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (error) {
+      console.error('Error accessing camera:', error);
+      showToastNotification('Could not access camera. Please check permissions.');
+    }
+  };
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      setCameraStream(null);
+    }
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0);
+        const imageData = canvas.toDataURL('image/jpeg');
+        setCapturedImage(imageData);
+        stopCamera();
+        setShowResearchCamera(false);
+        showToastNotification('Photo captured!');
+      }
+    }
+  };
+
+  const removePhoto = () => {
+    setCapturedImage(null);
+  };
+
+  useEffect(() => {
+    if (showResearchCamera && !cameraStream) {
+      startCamera();
+    } else if (!showResearchCamera && cameraStream) {
+      stopCamera();
+    }
+    return () => {
+      if (cameraStream) {
+        stopCamera();
+      }
+    };
+  }, [showResearchCamera]);
+
   const handleStartResearchWithTasks = async (assignments: Record<string, string[]>) => {
     setLoading(true);
     setShowQuestions(false);
@@ -946,7 +1008,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
 
       {/* Floating Navigation */}
       <nav className="fixed left-1/2 top-4 z-50 w-[calc(100%-2rem)] max-w-fit -translate-x-1/2">
-        <div className="flex items-center justify-between gap-3 whitespace-nowrap rounded-full border border-zinc-700 bg-zinc-900/90 px-4 py-3 shadow-lg backdrop-blur-md md:gap-6 md:px-6">
+        <div className="flex items-center justify-between gap-3 whitespace-nowrap rounded-full border border-zinc-700 bg-zinc-900/90 px-4 py-3 font-[family-name:var(--font-inter)] shadow-lg backdrop-blur-md md:gap-6 md:px-6">
           {/* Logo/Brand */}
           <div className="flex items-center gap-2">
             <span className="text-base font-bold text-zinc-100 md:text-xl">Deepest Research</span>
@@ -1036,12 +1098,20 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
 
             {/* Collection link - only show if authenticated */}
             {isAuthenticated && (
-              <a
-                href="/collection"
-                className="rounded-full px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
-              >
-                My Collection
-              </a>
+              <>
+                <a
+                  href="/research-team"
+                  className="rounded-full px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                >
+                  Research Team
+                </a>
+                <a
+                  href="/collection"
+                  className="rounded-full px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                >
+                  My Collection
+                </a>
+              </>
             )}
 
             {/* User menu */}
@@ -1181,16 +1251,28 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
 
                 {/* Collection link - only show if authenticated */}
                 {isAuthenticated && (
-                  <a
-                    href="/collection"
-                    onClick={() => setShowMobileMenu(false)}
-                    className="flex items-center gap-3 px-8 py-4 text-base font-medium text-zinc-900 transition-colors hover:bg-zinc-50 dark:text-zinc-100 dark:hover:bg-zinc-800"
-                  >
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                    </svg>
-                    My Collection
-                  </a>
+                  <>
+                    <a
+                      href="/research-team"
+                      onClick={() => setShowMobileMenu(false)}
+                      className="flex items-center gap-3 px-8 py-4 text-base font-medium text-zinc-900 transition-colors hover:bg-zinc-50 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                    >
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                      Research Team
+                    </a>
+                    <a
+                      href="/collection"
+                      onClick={() => setShowMobileMenu(false)}
+                      className="flex items-center gap-3 px-8 py-4 text-base font-medium text-zinc-900 transition-colors hover:bg-zinc-50 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                    >
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                      </svg>
+                      My Collection
+                    </a>
+                  </>
                 )}
 
                 {/* User section */}
@@ -1379,6 +1461,60 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
           )}
         </div>
 
+        {/* Camera Modal */}
+        {showResearchCamera && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+            <div className="relative w-full max-w-2xl rounded-3xl border border-zinc-700/50 bg-zinc-900 p-6">
+              <button
+                onClick={() => setShowResearchCamera(false)}
+                className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-red-500/80 text-white hover:bg-red-600"
+              >
+                ×
+              </button>
+              <h2 className="mb-4 text-xl font-semibold text-zinc-100">Capture Photo</h2>
+              <div className="mb-4 overflow-hidden rounded-2xl bg-black">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  className="w-full"
+                />
+              </div>
+              <div className="flex justify-center gap-3">
+                <button
+                  onClick={capturePhoto}
+                  className="rounded-full border border-zinc-700/50 bg-linear-to-br from-blue-500/10 to-zinc-800/80 px-8 py-3 text-base font-medium text-zinc-100 backdrop-blur-md transition-all hover:border-zinc-600/60 hover:from-blue-500/20"
+                >
+                  Take Photo
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Hidden canvas for photo capture */}
+        <canvas ref={canvasRef} className="hidden" />
+
+        {/* Captured Image Display */}
+        {capturedImage && !loading && !loadingQuestions && !showQuestions && !responses.length && (
+          <div className="mb-6">
+            <div className="relative inline-block rounded-2xl border border-zinc-700/50 bg-zinc-900/50 p-2">
+              <img
+                src={capturedImage}
+                alt="Captured"
+                className="max-h-64 rounded-xl"
+              />
+              <button
+                onClick={removePhoto}
+                className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500/90 text-white hover:bg-red-600"
+              >
+                ×
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-zinc-500">Photo will be included with your research query</p>
+          </div>
+        )}
+
         {/* Loading ideas state */}
         {loadingIdeas && !loading && !loadingQuestions && !showQuestions && !responses.length && (
           <div className="mb-12 flex flex-col items-center justify-center gap-4">
@@ -1540,9 +1676,11 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
             </div>
 
             <div className="mb-8">
-              <label className="mb-4 block text-xl font-medium">
-                {questions[currentQuestionIndex]}
-              </label>
+              <JumpingTextInstagram
+                text={questions[currentQuestionIndex]}
+                mode="character"
+                className="mb-4 block text-xl font-medium text-zinc-900 dark:text-zinc-100"
+              />
               <input
                 type="text"
                 value={answers[currentQuestionIndex] || ''}
