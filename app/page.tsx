@@ -58,8 +58,9 @@ const AVAILABLE_MODELS = [
   { id: 'openai/o1', name: 'O1', provider: 'OpenAI' },
   { id: 'google/gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google' },
   { id: 'google/gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google' },
-  { id: 'xai/grok-4-fast-reasoning', name: 'Grok 4 Fast', provider: 'xAI' },
-  { id: 'xai/grok-4-reasoning', name: 'Grok 4 Reasoning', provider: 'xAI' },
+  { id: 'xai/grok-4', name: 'Grok 4', provider: 'xAI' },
+  { id: 'xai/grok-4-fast-reasoning', name: 'Grok 4 Fast Reasoning', provider: 'xAI' },
+  { id: 'xai/grok-4-fast-non-reasoning', name: 'Grok 4 Fast Non-Reasoning', provider: 'xAI' },
   { id: 'deepseek/deepseek-v3', name: 'DeepSeek V3', provider: 'DeepSeek' },
   { id: 'meta/llama-4-405b', name: 'Llama 4 405B', provider: 'Meta' },
 ];
@@ -68,7 +69,7 @@ const DEFAULT_MODELS = [
   'anthropic/claude-sonnet-4.5',
   'openai/gpt-5',
   'google/gemini-2.5-pro',
-  'xai/grok-4-fast-reasoning',
+  'xai/grok-4',
 ];
 
 export default function Home() {

@@ -52,8 +52,9 @@ export async function POST(req: Request) {
     'openai/o1': 'O1',
     'google/gemini-2.5-pro': 'Gemini 2.5 Pro',
     'google/gemini-2.5-flash': 'Gemini 2.5 Flash',
-    'xai/grok-4-fast-reasoning': 'Grok 4 Fast',
-    'xai/grok-4-reasoning': 'Grok 4 Reasoning',
+    'xai/grok-4': 'Grok 4',
+    'xai/grok-4-fast-reasoning': 'Grok 4 Fast Reasoning',
+    'xai/grok-4-fast-non-reasoning': 'Grok 4 Fast Non-Reasoning',
     'deepseek/deepseek-v3': 'DeepSeek V3',
     'meta/llama-4-405b': 'Llama 4 405B',
   };
@@ -97,7 +98,7 @@ Please use this current web information to provide an up-to-date, accurate answe
       // Query all models in parallel and stream results as they come in
       const responsePromises = models.map(async ({ name, model }) => {
         try {
-          console.log(`Starting query for ${name}`);
+          console.log(`[${name}] Starting query...`);
           const result = await streamText({
             model,
             prompt: enhancedPrompt,
@@ -111,11 +112,16 @@ Please use this current web information to provide an up-to-date, accurate answe
             sendEvent('model-chunk', { name, chunk });
           }
 
-          console.log(`Completed query for ${name}, text length: ${fullText.length}`);
+          console.log(`[${name}] ✓ Completed. Text length: ${fullText.length}`);
           sendEvent('model-complete', { name, text: fullText, error: null });
           return { name, text: fullText, error: null };
         } catch (error) {
-          console.error(`Error querying ${name}:`, error);
+          console.error(`[${name}] ✗ Error:`, error);
+          console.error(`[${name}] Error details:`, {
+            message: error instanceof Error ? error.message : 'Unknown error',
+            name: error instanceof Error ? error.name : 'Unknown',
+            stack: error instanceof Error ? error.stack : undefined,
+          });
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           sendEvent('model-complete', { name, text: null, error: errorMessage });
           return { name, text: null, error: errorMessage };
