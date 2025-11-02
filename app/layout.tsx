@@ -28,33 +28,6 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "Deepest Research",
   },
-  icons: {
-    icon: [
-      {
-        url: "/assets/deepestresearch-logo-white.png",
-        type: "image/png",
-        sizes: "any",
-      },
-      {
-        url: "/favicon.ico",
-        type: "image/x-icon",
-        sizes: "any",
-      },
-    ],
-    shortcut: [
-      {
-        url: "/assets/deepestresearch-logo-white.png",
-        type: "image/png",
-      },
-    ],
-    apple: [
-      {
-        url: "/assets/deepestresearch-logo-white.png",
-        type: "image/png",
-        sizes: "180x180",
-      },
-    ],
-  },
   viewport: {
     width: "device-width",
     initialScale: 1,
