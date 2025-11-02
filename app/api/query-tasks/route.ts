@@ -34,8 +34,19 @@ async function searchWeb(query: string) {
   }
 }
 
+interface Task {
+  id: string;
+  title: string;
+  description: string;
+  prompt: string;
+}
+
 export async function POST(req: Request) {
-  const { prompt, models: modelIds } = await req.json();
+  const { tasks, taskAssignments, originalQuery }: {
+    tasks: Task[];
+    taskAssignments: Record<string, string[]>;
+    originalQuery: string;
+  } = await req.json();
 
   // Create gateway instance with API key
   const gateway = createGateway({
@@ -60,11 +71,14 @@ export async function POST(req: Request) {
     'meta/llama-4-405b': 'Llama 4 405B',
   };
 
-  // Build models array from IDs
-  const models = (modelIds as string[]).map(modelId => ({
-    name: modelNameMap[modelId] || modelId,
-    model: gateway(modelId),
-  }));
+  // Build a map of model ID to task prompt
+  const modelTaskMap: Record<string, string> = {};
+  for (const task of tasks) {
+    const assignedModels = taskAssignments[task.id] || [];
+    for (const modelId of assignedModels) {
+      modelTaskMap[modelId] = task.prompt;
+    }
+  }
 
   // Create a readable stream for Server-Sent Events
   const encoder = new TextEncoder();
@@ -75,33 +89,31 @@ export async function POST(req: Request) {
         controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
       };
 
-      // Pre-fetch web search results for all models
+      // Pre-fetch web search results for the original query
       sendEvent('search-started', {});
-      const webData = await searchWeb(prompt);
+      const webData = await searchWeb(originalQuery);
       sendEvent('search-complete', { hasResults: !!webData });
 
-      // Build enhanced prompt with web search results
-      let enhancedPrompt = prompt;
+      // Build web search context to append to each task
+      let webSearchContext = '';
       if (webData && webData.results && webData.results.length > 0) {
-        enhancedPrompt = `${prompt}
-
-WEB SEARCH RESULTS (Current information from the web):
-
-${webData.answer ? `Summary: ${webData.answer}\n\n` : ''}${webData.results.map((result: any, i: number) => `
+        webSearchContext = `\n\nWEB SEARCH RESULTS (Current information from the web):\n\n${webData.answer ? `Summary: ${webData.answer}\n\n` : ''}${webData.results.map((result: any, i: number) => `
 [${i + 1}] ${result.title}
 URL: ${result.url}
 ${result.content}
-`).join('\n')}
-
-Please use this current web information to provide an up-to-date, accurate answer to the user's question.`;
+`).join('\n')}\n\nPlease use this current web information to provide an up-to-date, accurate answer.`;
       }
 
-      // Query all models in parallel and stream results as they come in
-      const responsePromises = models.map(async ({ name, model }) => {
+      // Query all models in parallel with their assigned task prompts
+      const responsePromises = Object.entries(modelTaskMap).map(async ([modelId, taskPrompt]) => {
+        const modelName = modelNameMap[modelId] || modelId;
         try {
-          console.log(`[${name}] Starting query...`);
+          console.log(`[${modelName}] Starting task-based query...`);
+
+          const enhancedPrompt = taskPrompt + webSearchContext;
+
           const result = await streamText({
-            model,
+            model: gateway(modelId),
             prompt: enhancedPrompt,
           });
 
@@ -110,46 +122,50 @@ Please use this current web information to provide an up-to-date, accurate answe
           // Stream chunks as they arrive
           for await (const chunk of result.textStream) {
             fullText += chunk;
-            sendEvent('model-chunk', { name, chunk });
+            sendEvent('model-chunk', { name: modelName, chunk });
           }
 
-          console.log(`[${name}] ✓ Completed. Text length: ${fullText.length}`);
-          sendEvent('model-complete', { name, text: fullText, error: null });
-          return { name, text: fullText, error: null };
+          console.log(`[${modelName}] ✓ Completed. Text length: ${fullText.length}`);
+          sendEvent('model-complete', { name: modelName, text: fullText, error: null });
+          return { name: modelName, text: fullText, error: null };
         } catch (error) {
-          console.error(`[${name}] ✗ Error:`, error);
-          console.error(`[${name}] Error details:`, {
-            message: error instanceof Error ? error.message : 'Unknown error',
-            name: error instanceof Error ? error.name : 'Unknown',
-            stack: error instanceof Error ? error.stack : undefined,
-          });
+          console.error(`[${modelName}] ✗ Error:`, error);
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          sendEvent('model-complete', { name, text: null, error: errorMessage });
-          return { name, text: null, error: errorMessage };
+          sendEvent('model-complete', { name: modelName, text: null, error: errorMessage });
+          return { name: modelName, text: null, error: errorMessage };
         }
       });
 
       // Wait for all model responses
       const responses = await Promise.all(responsePromises);
 
-      // Create synthesis prompt with all responses
-      const synthesisPrompt = `You are a research analyst. A user asked: "${prompt}"
+      // Create synthesis prompt that acknowledges the task-based approach
+      const synthesisPrompt = `You are a research analyst. A user asked: "${originalQuery}"
 
-Here are responses from 4 different AI models:
+We broke this research into specialized tasks and assigned different AI models to focus on specific aspects:
 
-${responses.map((r) => `
-**${r.name}:**
-${r.error ? `Error: ${r.error}` : r.text}
-`).join('\n')}
+${tasks.map((task) => {
+  const assignedModels = taskAssignments[task.id] || [];
+  const taskResponses = responses.filter(r => {
+    const modelId = Object.entries(modelNameMap).find(([, name]) => name === r.name)?.[0];
+    return modelId && assignedModels.includes(modelId);
+  });
+
+  return `**Task: ${task.title}**
+Focus: ${task.description}
+
+Models assigned to this task:
+${taskResponses.map(r => `\n**${r.name}:**\n${r.error ? `Error: ${r.error}` : r.text}`).join('\n')}`;
+}).join('\n\n')}
 
 Your task:
-1. Compare and contrast these responses
-2. Identify agreements and disagreements
-3. Evaluate the quality and accuracy of each response
-4. Synthesize the best possible answer that combines their strengths
-5. Highlight any important nuances or caveats
+1. Synthesize the findings from each specialized research task
+2. Identify how the different task findings complement each other
+3. Note any agreements or disagreements between models on the same task
+4. Combine insights to provide a comprehensive answer to the original question
+5. Highlight important nuances or caveats
 
-Provide a comprehensive, well-researched answer.`;
+Provide a well-structured, comprehensive answer that draws from all research tasks.`;
 
       // Stream synthesis
       try {

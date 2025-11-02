@@ -43,7 +43,7 @@ const PROVIDER_STYLES: Record<string, { logo: string; bg: string }> = {
   'Anthropic': { logo: '/logos/anthropic-logo.png', bg: '#FFF5F2' },
   'OpenAI': { logo: 'https://logo.clearbit.com/openai.com', bg: '#F0FFF4' },
   'Google': { logo: '/logos/google-logo.png', bg: '#F0F7FF' },
-  'xAI': { logo: '/logos/xai-logo.png', bg: '#F5F5F5' },
+  'xAI': { logo: '/logos/grok-logo.png', bg: '#F5F5F5' },
   'DeepSeek': { logo: '/logos/deepseek-logo.png', bg: '#F0F1FF' },
   'Meta': { logo: '/logos/meta-logo.png', bg: '#F0F7FF' },
 };
@@ -59,6 +59,7 @@ const AVAILABLE_MODELS = [
   { id: 'google/gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google' },
   { id: 'google/gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google' },
   { id: 'xai/grok-4', name: 'Grok 4', provider: 'xAI' },
+  { id: 'xai/grok-4-reasoning', name: 'Grok 4 Reasoning', provider: 'xAI' },
   { id: 'xai/grok-4-fast-reasoning', name: 'Grok 4 Fast Reasoning', provider: 'xAI' },
   { id: 'xai/grok-4-fast-non-reasoning', name: 'Grok 4 Fast Non-Reasoning', provider: 'xAI' },
   { id: 'deepseek/deepseek-v3', name: 'DeepSeek V3', provider: 'DeepSeek' },
@@ -102,6 +103,19 @@ export default function Home() {
   const [userJobTitle, setUserJobTitle] = useState('');
   const [userIndustry, setUserIndustry] = useState('');
 
+  // Research Camera state
+  const [showResearchCamera, setShowResearchCamera] = useState(false);
+
+  // Research Planning state
+  const [showResearchPlan, setShowResearchPlan] = useState(false);
+  const [researchTasks, setResearchTasks] = useState<Array<{
+    id: string;
+    title: string;
+    description: string;
+    prompt: string;
+  }>>([]);
+  const [taskAssignments, setTaskAssignments] = useState<Record<string, string[]>>({});
+  const [loadingResearchPlan, setLoadingResearchPlan] = useState(false);
 
   // Audio notification state
   const [audioEnabled, setAudioEnabled] = useState(true);
@@ -232,7 +246,7 @@ export default function Home() {
       if (sound === 'chord') {
         // C major chord
         const frequencies = [523.25, 659.25, 783.99]; // C5, E5, G5
-        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
         frequencies.forEach((freq, i) => {
           const oscillator = audioContext.createOscillator();
@@ -244,7 +258,7 @@ export default function Home() {
         });
       } else if (sound === 'bell') {
         // Bell sound
-        gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+        gainNode.gain.setValueAtTime(0.4, audioContext.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
         [880, 1046.5].forEach((freq, i) => {
           const oscillator = audioContext.createOscillator();
@@ -256,7 +270,7 @@ export default function Home() {
         });
       } else if (sound === 'ping') {
         // Simple ping
-        gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+        gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
         const oscillator = audioContext.createOscillator();
         oscillator.frequency.value = 800;
@@ -266,7 +280,7 @@ export default function Home() {
         oscillator.stop(audioContext.currentTime + 0.3);
       } else if (sound === 'success') {
         // Success sound (ascending notes)
-        gainNode.gain.setValueAtTime(0.12, audioContext.currentTime);
+        gainNode.gain.setValueAtTime(0.35, audioContext.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.6);
         [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
           const oscillator = audioContext.createOscillator();
@@ -421,9 +435,11 @@ export default function Home() {
   };
 
   // Drag and drop handlers
-  const handleDragStart = (modelId: string, fromTeam: boolean) => {
+  const handleDragStart = (e: React.DragEvent, modelId: string, fromTeam: boolean) => {
     setDraggedModel(modelId);
     setDraggedFromTeam(fromTeam);
+    e.dataTransfer.setData('modelId', modelId);
+    e.dataTransfer.effectAllowed = 'move';
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -607,25 +623,169 @@ export default function Home() {
     }
   };
 
-  const handleNextQuestion = () => {
+  const handleNextQuestion = async () => {
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     } else {
-      // Show prompt preview instead of starting research directly
-      const enrichedPrompt = `${query}
+      // Generate research plan after Q&A
+      setShowQuestions(false);
+      setLoadingResearchPlan(true);
+
+      try {
+        const response = await fetch('/api/research-plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query, answers }),
+        });
+
+        const data = await response.json();
+
+        if (data.tasks && data.tasks.length > 0) {
+          setResearchTasks(data.tasks);
+          setShowResearchPlan(true);
+
+          // Build enriched prompt for later
+          const enrichedPrompt = `${query}
 
 Additional context from user:
 ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).join('\n\n')}`;
-
-      setEditablePrompt(enrichedPrompt);
-      setShowPromptPreview(true);
-      setShowQuestions(false);
+          setEditablePrompt(enrichedPrompt);
+        } else {
+          throw new Error('No tasks generated');
+        }
+      } catch (error) {
+        console.error('Error generating research plan:', error);
+        showToastNotification('Failed to generate research plan. Please try again.');
+        setShowQuestions(true);
+      } finally {
+        setLoadingResearchPlan(false);
+      }
     }
   };
 
   const handlePrevQuestion = () => {
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex(currentQuestionIndex - 1);
+    }
+  };
+
+  const handleRegeneratePlan = async () => {
+    setLoadingResearchPlan(true);
+    try {
+      const response = await fetch('/api/research-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, answers }),
+      });
+
+      const data = await response.json();
+
+      if (data.tasks && data.tasks.length > 0) {
+        setResearchTasks(data.tasks);
+        showToastNotification('Research plan regenerated!');
+      }
+    } catch (error) {
+      console.error('Error regenerating research plan:', error);
+      showToastNotification('Failed to regenerate plan. Please try again.');
+    } finally {
+      setLoadingResearchPlan(false);
+    }
+  };
+
+  const handleApprovePlan = () => {
+    // Use the manually assigned models from drag-and-drop
+    setShowResearchPlan(false);
+
+    // Start research directly with task-based prompts
+    handleStartResearchWithTasks(taskAssignments);
+  };
+
+  const handleStartResearchWithTasks = async (assignments: Record<string, string[]>) => {
+    setLoading(true);
+    setShowQuestions(false);
+    setShowPromptPreview(false);
+    setExpandedCards(new Set());
+    setSynthesisExpanded(false);
+
+    // Initialize empty responses based on selected models
+    const initialResponses: ModelResponse[] = selectedModels.map(modelId => ({
+      name: getModelInfo(modelId).name,
+      text: '',
+      error: null,
+    }));
+    setResponses(initialResponses);
+    setSynthesis('');
+
+    try {
+      const res = await fetch('/api/query-tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tasks: researchTasks,
+          taskAssignments: assignments,
+          originalQuery: query,
+        }),
+      });
+
+      if (!res.body) throw new Error('No response body');
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+
+          const eventMatch = line.match(/^event: (.+)\ndata: (.+)$/);
+          if (!eventMatch) continue;
+
+          const [, event, dataStr] = eventMatch;
+          const data = JSON.parse(dataStr);
+
+          if (event === 'model-chunk') {
+            setResponses(prev => {
+              const index = prev.findIndex(r => r.name === data.name);
+              if (index === -1) return prev;
+              const newResponses = [...prev];
+              newResponses[index] = {
+                ...newResponses[index],
+                text: (newResponses[index].text || '') + data.chunk,
+              };
+              return newResponses;
+            });
+          } else if (event === 'model-complete') {
+            setResponses(prev => {
+              const index = prev.findIndex(r => r.name === data.name);
+              if (index === -1) return prev;
+              const newResponses = [...prev];
+              newResponses[index] = {
+                name: data.name,
+                text: data.text,
+                error: data.error,
+              };
+              return newResponses;
+            });
+          } else if (event === 'synthesis-chunk') {
+            setSynthesis(prev => (prev || '') + data.chunk);
+          } else if (event === 'synthesis-complete') {
+            if (data.text) setSynthesis(data.text);
+          } else if (event === 'done') {
+            playNotificationSound();
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -897,6 +1057,80 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
           {/* Menu Panel */}
           <div className="fixed left-1/2 top-20 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-700 dark:bg-zinc-900 md:hidden">
               <div className="flex flex-col divide-y divide-zinc-200 dark:divide-zinc-800">
+                {/* Audio Settings Section */}
+                <div className="px-8 py-4">
+                  <div className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                    Audio Settings
+                  </div>
+
+                  {/* Sound options */}
+                  <div className="space-y-2">
+                    {[
+                      { id: 'chord', label: 'Chord', desc: 'Harmonic blend' },
+                      { id: 'bell', label: 'Bell', desc: 'Double chime' },
+                      { id: 'ping', label: 'Ping', desc: 'Quick beep' },
+                      { id: 'success', label: 'Success', desc: 'Ascending notes' },
+                    ].map((sound) => (
+                      <button
+                        key={sound.id}
+                        onClick={() => {
+                          changeSound(sound.id);
+                          if (!audioEnabled) {
+                            setAudioEnabled(true);
+                            localStorage.setItem('audioNotificationsEnabled', 'true');
+                          }
+                        }}
+                        className={`w-full rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
+                          selectedSound === sound.id && audioEnabled
+                            ? 'bg-blue-50 dark:bg-blue-900/20'
+                            : ''
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className={`text-sm font-medium ${
+                              selectedSound === sound.id && audioEnabled
+                                ? 'text-blue-600 dark:text-blue-400'
+                                : 'text-zinc-900 dark:text-zinc-100'
+                            }`}>
+                              {sound.label}
+                            </div>
+                            <div className="text-xs text-zinc-500 dark:text-zinc-400">{sound.desc}</div>
+                          </div>
+                          {selectedSound === sound.id && audioEnabled && (
+                            <svg className="h-4 w-4 text-blue-600 dark:text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+
+                    {/* Mute toggle */}
+                    <button
+                      onClick={toggleAudio}
+                      className={`w-full rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
+                        !audioEnabled ? 'bg-red-50 dark:bg-red-900/20' : ''
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className={`text-sm font-medium ${
+                          audioEnabled
+                            ? 'text-zinc-900 dark:text-zinc-100'
+                            : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          {audioEnabled ? 'Mute notifications' : 'Unmute notifications'}
+                        </span>
+                        {!audioEnabled && (
+                          <svg className="h-4 w-4 text-red-600 dark:text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
                 {/* Collection link - only show if authenticated */}
                 {isAuthenticated && (
                   <a
@@ -999,27 +1233,35 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
           )}
 
           {!loading && !loadingQuestions && !showQuestions && !responses.length && !query.trim() && (
-            <div className="mt-3 flex gap-2">
-              <button
-                onClick={() => setShowGlobe(!showGlobe)}
-                className="rounded-full border border-zinc-300 px-5 py-3 text-base text-zinc-700 transition-colors hover:border-zinc-900 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-100 dark:hover:bg-zinc-900"
-              >
-                {showGlobe ? '🌍 Hide Globe' : '🌍 Explore Globe'}
-              </button>
-              <button
-                onClick={handleGenerateIdeas}
-                disabled={loadingIdeas}
-                className="rounded-full border border-zinc-300 px-5 py-3 text-base text-zinc-700 transition-colors hover:border-zinc-900 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-100 dark:hover:bg-zinc-900"
-              >
-                {loadingIdeas ? '💡 Generating...' : '💡 Generate Ideas'}
-              </button>
-              <div className="personalize-dropdown-container">
+            <div className="-mx-8 mt-3 overflow-x-auto px-8 md:mx-0 md:px-0">
+              <div className="flex gap-2 md:flex-wrap">
                 <button
-                  onClick={() => setShowPersonalize(!showPersonalize)}
-                  className="rounded-full border border-zinc-300 px-5 py-3 text-base text-zinc-700 transition-colors hover:border-zinc-900 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-100 dark:hover:bg-zinc-900"
+                  onClick={() => setShowGlobe(!showGlobe)}
+                  className="whitespace-nowrap rounded-full border border-zinc-700/50 bg-linear-to-br from-blue-500/5 to-zinc-800/80 px-6 py-3.5 text-base font-medium text-zinc-100 backdrop-blur-md transition-all hover:border-zinc-600/60 hover:from-blue-500/10"
                 >
-                  👤 Personalize
+                  {showGlobe ? 'Hide Globe' : 'Explore Globe'}
                 </button>
+                <button
+                  onClick={handleGenerateIdeas}
+                  disabled={loadingIdeas}
+                  className="whitespace-nowrap rounded-full border border-zinc-700/50 bg-linear-to-br from-purple-500/5 to-zinc-800/80 px-6 py-3.5 text-base font-medium text-zinc-100 backdrop-blur-md transition-all hover:border-zinc-600/60 hover:from-purple-500/10 disabled:opacity-50"
+                >
+                  {loadingIdeas ? 'Generating...' : 'Generate Ideas'}
+                </button>
+                <button
+                  onClick={() => setShowResearchCamera(!showResearchCamera)}
+                  className="whitespace-nowrap rounded-full border border-zinc-700/50 bg-linear-to-br from-green-500/5 to-zinc-800/80 px-6 py-3.5 text-base font-medium text-zinc-100 backdrop-blur-md transition-all hover:border-zinc-600/60 hover:from-green-500/10"
+                >
+                  Research Camera
+                </button>
+                <div className="personalize-dropdown-container">
+                  <button
+                    onClick={() => setShowPersonalize(!showPersonalize)}
+                    className="whitespace-nowrap rounded-full border border-zinc-700/50 bg-linear-to-br from-orange-500/5 to-zinc-800/80 px-6 py-3.5 text-base font-medium text-zinc-100 backdrop-blur-md transition-all hover:border-zinc-600/60 hover:from-orange-500/10"
+                  >
+                    Personalize
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -1028,7 +1270,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
           {!loading && !loadingQuestions && !showQuestions && !responses.length && (userLocation || userJobTitle || userIndustry) && (
             <div className="mt-3 flex flex-wrap gap-2">
               {userLocation && (
-                <div className="flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 dark:bg-blue-950/30 dark:text-blue-300">
+                <div className="flex items-center gap-2 rounded-full border border-zinc-700/50 bg-linear-to-br from-blue-500/5 to-zinc-800/80 px-4 py-2 text-sm font-medium text-zinc-100 backdrop-blur-md">
                   <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -1039,7 +1281,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                       setUserLocation('');
                       localStorage.removeItem('userLocation');
                     }}
-                    className="ml-1 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50"
+                    className="ml-1 rounded-full p-0.5 transition-colors hover:bg-zinc-700/50"
                   >
                     <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1048,7 +1290,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                 </div>
               )}
               {userJobTitle && (
-                <div className="flex items-center gap-2 rounded-full bg-purple-50 px-4 py-2 text-sm font-medium text-purple-700 dark:bg-purple-950/30 dark:text-purple-300">
+                <div className="flex items-center gap-2 rounded-full border border-zinc-700/50 bg-linear-to-br from-purple-500/5 to-zinc-800/80 px-4 py-2 text-sm font-medium text-zinc-100 backdrop-blur-md">
                   <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
@@ -1058,7 +1300,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                       setUserJobTitle('');
                       localStorage.removeItem('userJobTitle');
                     }}
-                    className="ml-1 rounded-full hover:bg-purple-100 dark:hover:bg-purple-900/50"
+                    className="ml-1 rounded-full p-0.5 transition-colors hover:bg-zinc-700/50"
                   >
                     <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1067,7 +1309,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                 </div>
               )}
               {userIndustry && (
-                <div className="flex items-center gap-2 rounded-full bg-green-50 px-4 py-2 text-sm font-medium text-green-700 dark:bg-green-950/30 dark:text-green-300">
+                <div className="flex items-center gap-2 rounded-full border border-zinc-700/50 bg-linear-to-br from-green-500/5 to-zinc-800/80 px-4 py-2 text-sm font-medium text-zinc-100 backdrop-blur-md">
                   <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                   </svg>
@@ -1077,7 +1319,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                       setUserIndustry('');
                       localStorage.removeItem('userIndustry');
                     }}
-                    className="ml-1 rounded-full hover:bg-green-100 dark:hover:bg-green-900/50"
+                    className="ml-1 rounded-full p-0.5 transition-colors hover:bg-zinc-700/50"
                   >
                     <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1089,10 +1331,41 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
           )}
         </div>
 
+        {/* Loading ideas state */}
+        {loadingIdeas && !loading && !loadingQuestions && !showQuestions && !responses.length && (
+          <div className="mb-12 flex flex-col items-center justify-center gap-4">
+            <PixelatedCanvas
+              src="/assets/gpu.png"
+              width={600}
+              height={400}
+              cellSize={2}
+              dotScale={0.85}
+              shape="square"
+              backgroundColor="transparent"
+              dropoutStrength={0.3}
+              interactive={true}
+              distortionStrength={5}
+              distortionRadius={100}
+              distortionMode="swirl"
+              followSpeed={0.15}
+              jitterStrength={6}
+              jitterSpeed={3}
+              sampleAverage={true}
+              className="rounded-3xl"
+            />
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              Generating research ideas...
+            </p>
+          </div>
+        )}
+
         {/* Generated ideas */}
         {generatedIdeas.length > 0 && !loading && !loadingQuestions && !showQuestions && !responses.length && (
           <div className="mb-12">
-            <h3 className="mb-4 text-xl font-semibold">Research Ideas</h3>
+            <div className="mb-6">
+              <h3 className="mb-2 text-2xl font-semibold text-zinc-100">Research Ideas</h3>
+              <p className="text-sm text-zinc-400">Click any topic below to start your research</p>
+            </div>
             <div className="grid gap-3 md:grid-cols-2">
               {generatedIdeas.map((idea, index) => (
                 <button
@@ -1110,34 +1383,20 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
         {/* Globe and location suggestions */}
         {showGlobe && !loading && !loadingQuestions && !showQuestions && !responses.length && (
           <div className="mb-12">
-            <InteractiveGlobe onLocationSelect={handleLocationSelect} />
-
             {loadingLocation && (
-              <div className="mt-8">
-                <div className="mx-auto max-w-md rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-                  <div className="mb-4 text-center">
-                    <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-zinc-200 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100"></div>
+              <div className="mb-8">
+                <div className="mx-auto max-w-md rounded-3xl border border-zinc-700/50 bg-linear-to-br from-blue-500/5 to-zinc-800/80 p-8 backdrop-blur-md">
+                  <div className="mb-6 flex justify-center">
+                    <div className="h-10 w-10 animate-spin rounded-full border-4 border-zinc-700/30 border-t-zinc-100"></div>
                   </div>
-                  <div className="space-y-3 text-sm">
-                    <div className="flex items-center gap-3">
-                      <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500"></div>
-                      <span className="text-zinc-600 dark:text-zinc-400">Fetching news headlines...</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-purple-500" style={{ animationDelay: '0.2s' }}></div>
-                      <span className="text-zinc-600 dark:text-zinc-400">Searching web for current trends...</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" style={{ animationDelay: '0.4s' }}></div>
-                      <span className="text-zinc-600 dark:text-zinc-400">Generating research topics...</span>
-                    </div>
-                  </div>
-                  <p className="mt-4 text-center text-xs text-zinc-500">
-                    This may take 10-20 seconds
+                  <p className="text-center text-base font-medium text-zinc-100">
+                    Gathering research ideas...
                   </p>
                 </div>
               </div>
             )}
+
+            {!loadingLocation && <InteractiveGlobe onLocationSelect={handleLocationSelect} />}
 
             {selectedLocation && locationSuggestions.length > 0 && (
               <div className="mt-8">
@@ -1275,6 +1534,158 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
           </div>
         )}
 
+        {/* Research Plan Loading */}
+        {loadingResearchPlan && (
+          <div className="mb-12 flex flex-col items-center justify-center gap-4">
+            <PixelatedCanvas
+              src="/assets/gpu.png"
+              width={600}
+              height={400}
+              cellSize={2}
+              dotScale={0.85}
+              shape="square"
+              backgroundColor="transparent"
+              dropoutStrength={0.3}
+              interactive={true}
+              distortionStrength={5}
+              distortionRadius={100}
+              distortionMode="swirl"
+              followSpeed={0.15}
+              jitterStrength={6}
+              jitterSpeed={3}
+              sampleAverage={true}
+              className="rounded-3xl"
+            />
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              Creating your research strategy...
+            </p>
+          </div>
+        )}
+
+        {/* Research Plan Review */}
+        {showResearchPlan && researchTasks.length > 0 && (
+          <div className="mb-12">
+            <div className="mb-6">
+              <h2 className="mb-2 text-2xl font-semibold text-zinc-100">Research Strategy</h2>
+              <p className="text-sm text-zinc-400">
+                Drag models from your research team below to assign them to specific tasks.
+              </p>
+            </div>
+
+            <div className="mb-6 space-y-4">
+              {researchTasks.map((task, index) => {
+                const assignedModels = taskAssignments[task.id] || [];
+                return (
+                  <div
+                    key={task.id}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.currentTarget.classList.add('border-blue-500/50', 'bg-blue-500/5');
+                    }}
+                    onDragLeave={(e) => {
+                      e.currentTarget.classList.remove('border-blue-500/50', 'bg-blue-500/5');
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.currentTarget.classList.remove('border-blue-500/50', 'bg-blue-500/5');
+                      const modelId = e.dataTransfer.getData('modelId');
+                      if (modelId) {
+                        const newAssignments = { ...taskAssignments };
+                        if (!newAssignments[task.id]) {
+                          newAssignments[task.id] = [];
+                        }
+                        if (!newAssignments[task.id].includes(modelId)) {
+                          newAssignments[task.id].push(modelId);
+                          setTaskAssignments(newAssignments);
+                        }
+                      }
+                    }}
+                    className="rounded-3xl border border-zinc-700/50 bg-linear-to-br from-zinc-800/80 to-zinc-900/80 p-6 backdrop-blur-md transition-all"
+                  >
+                    <div className="mb-3 flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-500/20 text-blue-400">
+                        <span className="text-lg font-semibold">{index + 1}</span>
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-zinc-100">{task.title}</h3>
+                        <p className="mt-1 text-sm text-zinc-400">{task.description}</p>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl bg-zinc-900/50 p-4 mb-4">
+                      <p className="text-xs font-medium text-zinc-500 mb-2">RESEARCH FOCUS:</p>
+                      <p className="text-sm text-zinc-300">{task.prompt}</p>
+                    </div>
+
+                    {/* Assigned Models */}
+                    <div className="rounded-2xl border border-zinc-700/30 bg-zinc-900/30 p-4">
+                      <p className="text-xs font-medium text-zinc-500 mb-3">ASSIGNED MODELS:</p>
+                      {assignedModels.length === 0 ? (
+                        <p className="text-sm text-zinc-600 italic">Drop models here to assign them to this task</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {assignedModels.map((modelId) => {
+                            const modelInfo = getModelInfo(modelId);
+                            const providerStyle = PROVIDER_STYLES[modelInfo.provider];
+                            return (
+                              <div
+                                key={modelId}
+                                className="group relative flex items-center gap-2 rounded-full border border-zinc-700/50 bg-linear-to-br from-zinc-800/80 to-zinc-900/80 px-3 py-1.5 text-sm backdrop-blur-md"
+                              >
+                                {providerStyle?.logo ? (
+                                  <img
+                                    src={providerStyle.logo}
+                                    alt={modelInfo.provider}
+                                    className="h-4 w-4 rounded object-contain"
+                                  />
+                                ) : (
+                                  <span className="flex h-4 w-4 items-center justify-center rounded bg-zinc-700 text-xs">
+                                    {modelInfo.provider.charAt(0)}
+                                  </span>
+                                )}
+                                <span className="text-zinc-200">{modelInfo.name}</span>
+                                <button
+                                  onClick={() => {
+                                    const newAssignments = { ...taskAssignments };
+                                    newAssignments[task.id] = newAssignments[task.id].filter(id => id !== modelId);
+                                    if (newAssignments[task.id].length === 0) {
+                                      delete newAssignments[task.id];
+                                    }
+                                    setTaskAssignments(newAssignments);
+                                  }}
+                                  className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500/80 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+              <button
+                onClick={handleRegeneratePlan}
+                disabled={loadingResearchPlan}
+                className="w-full rounded-full border border-zinc-700/50 bg-linear-to-br from-orange-500/5 to-zinc-800/80 px-8 py-3.5 text-base font-medium text-zinc-100 backdrop-blur-md transition-all hover:border-zinc-600/60 hover:from-orange-500/10 disabled:opacity-50 sm:w-auto"
+              >
+                {loadingResearchPlan ? 'Regenerating...' : 'Regenerate Plan'}
+              </button>
+              <button
+                onClick={handleApprovePlan}
+                disabled={Object.keys(taskAssignments).length === 0}
+                className="w-full rounded-full border border-zinc-700/50 bg-linear-to-br from-blue-500/10 to-zinc-800/80 px-8 py-3.5 text-base font-medium text-zinc-100 backdrop-blur-md transition-all hover:border-zinc-600/60 hover:from-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto"
+              >
+                Approve & Start Research →
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Prompt Preview & Approval */}
         {showPromptPreview && (
           <div className="mb-12">
@@ -1325,7 +1736,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
 
         {/* Model selector - show during prompt preview or initial state */}
         {!loading && !loadingQuestions && !showQuestions && !responses.length && (showPromptPreview || (!query.trim())) && (
-          <div className={`mb-8 relative transition-all ${showBench ? 'mr-80' : ''}`}>
+          <div className={`relative ${showBench ? 'mb-32' : 'mb-8'}`}>
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-lg font-medium text-zinc-100">
                 {showPromptPreview ? 'Choose Your Research Roster' : 'Research Team'}
@@ -1343,8 +1754,8 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                 return (
                   <div
                     key={index}
-                    draggable={showBench}
-                    onDragStart={() => handleDragStart(modelId, true)}
+                    draggable={true}
+                    onDragStart={(e) => handleDragStart(e, modelId, true)}
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDropOnTeam(e, index)}
                     className="relative rounded-3xl"
@@ -1363,16 +1774,16 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                           : 'border-zinc-200 dark:border-zinc-800'
                       }`}
                     >
-                      {/* Remove button */}
+                      {/* Remove button - always visible on mobile, hover on desktop */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           removeModel(modelId);
                         }}
-                        className="absolute -right-1 -top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100"
+                        className="absolute -right-1 -top-1 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white opacity-100 shadow-lg transition-all hover:bg-red-600 active:scale-90 md:h-5 md:w-5 md:opacity-0 md:group-hover:opacity-100"
                         title="Remove from team"
                       >
-                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <svg className="h-3.5 w-3.5 md:h-3 md:w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                       </button>
@@ -1384,15 +1795,21 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                             backgroundColor: PROVIDER_STYLES[modelInfo.provider]?.bg || '#F5F5F5',
                           }}
                         >
-                          <img
-                            src={PROVIDER_STYLES[modelInfo.provider]?.logo || ''}
-                            alt={modelInfo.provider}
-                            className="h-full w-full object-cover"
-                          />
+                          {PROVIDER_STYLES[modelInfo.provider]?.logo ? (
+                            <img
+                              src={PROVIDER_STYLES[modelInfo.provider].logo}
+                              alt={modelInfo.provider}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-xs font-semibold text-zinc-600">
+                              {modelInfo.provider.charAt(0)}
+                            </span>
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="mb-0.5 text-[10px] text-zinc-400">{modelInfo.provider}</div>
-                          <div className="text-xs font-medium text-zinc-100 truncate">{modelInfo.name}</div>
+                          <div className="mb-0.5 text-base text-zinc-400 md:text-sm">{modelInfo.provider}</div>
+                          <div className="text-lg font-medium text-zinc-100 truncate md:text-base">{modelInfo.name}</div>
                         </div>
                       </div>
                     </div>
@@ -1427,56 +1844,82 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
               </div>
             )}
 
-            {/* Bench Sidebar */}
+            {/* Bench Bottom Drawer */}
             {showBench && (
-              <div className="fixed right-0 top-0 z-50 h-screen w-80 border-l border-zinc-200 bg-white p-6 shadow-2xl dark:border-zinc-800 dark:bg-zinc-900">
-                <div className="mb-4 flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">Bench</h3>
-                  <button
-                    onClick={() => setShowBench(false)}
-                    className="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
-                  >
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-                <p className="mb-4 text-xs text-zinc-500 dark:text-zinc-400">
-                  Drag models to your team or drag team members here to bench them
-                </p>
-                <div
-                  className="space-y-2 overflow-y-auto"
-                  style={{ maxHeight: 'calc(100vh - 200px)' }}
-                  onDragOver={handleDragOver}
-                  onDrop={handleDropOnBench}
-                >
-                  {AVAILABLE_MODELS.filter(model => !selectedModels.includes(model.id)).map((model) => (
-                    <div
-                      key={model.id}
-                      draggable
-                      onDragStart={() => handleDragStart(model.id, false)}
-                      className="cursor-move rounded-3xl border border-zinc-200 p-3 transition-colors hover:border-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:border-zinc-100 dark:hover:bg-zinc-800"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg"
-                          style={{
-                            backgroundColor: PROVIDER_STYLES[model.provider]?.bg || '#F5F5F5',
-                          }}
-                        >
-                          <img
-                            src={PROVIDER_STYLES[model.provider]?.logo || ''}
-                            alt={model.provider}
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate">{model.name}</div>
-                          <div className="text-xs text-zinc-500 dark:text-zinc-400">{model.provider}</div>
-                        </div>
-                      </div>
+              <div className="fixed bottom-0 left-0 right-0 z-50 max-h-[28vh] overflow-hidden rounded-t-3xl border-t border-zinc-700/50 bg-linear-to-br from-zinc-800/98 to-zinc-900/98 shadow-2xl backdrop-blur-xl">
+                <div className="p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-zinc-100">Bench</h3>
+                      <p className="mt-0.5 text-xs text-zinc-400">
+                        <span className="hidden md:inline">Drag models to your team or drag team members here to bench them</span>
+                        <span className="md:hidden">Tap models to add to your team (max 6)</span>
+                      </p>
                     </div>
-                  ))}
+                    <button
+                      onClick={() => setShowBench(false)}
+                      className="rounded-full p-1.5 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100"
+                    >
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div
+                    className="overflow-y-auto pb-4"
+                    style={{ maxHeight: 'calc(28vh - 100px)' }}
+                    onDragOver={handleDragOver}
+                    onDrop={handleDropOnBench}
+                  >
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                      {AVAILABLE_MODELS.filter(model => !selectedModels.includes(model.id)).map((model) => (
+                        <div
+                          key={model.id}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, model.id, false)}
+                          onClick={() => {
+                            // Mobile tap to add
+                            if (selectedModels.length < 6) {
+                              setSelectedModels([...selectedModels, model.id]);
+                              localStorage.setItem('selectedModels', JSON.stringify([...selectedModels, model.id]));
+                            }
+                          }}
+                          className="relative cursor-pointer rounded-3xl border border-zinc-700/50 bg-linear-to-br from-zinc-700/30 to-zinc-800/50 p-4 transition-all hover:border-zinc-600 hover:from-zinc-700/50 active:scale-95"
+                        >
+                          {/* Add icon - visible on mobile */}
+                          <div className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-white shadow-lg md:hidden">
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                            </svg>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg"
+                              style={{
+                                backgroundColor: PROVIDER_STYLES[model.provider]?.bg || '#F5F5F5',
+                              }}
+                            >
+                              {PROVIDER_STYLES[model.provider]?.logo ? (
+                                <img
+                                  src={PROVIDER_STYLES[model.provider].logo}
+                                  alt={model.provider}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <span className="text-base font-semibold text-zinc-600">
+                                  {model.provider.charAt(0)}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-base font-medium truncate text-zinc-100">{model.name}</div>
+                              <div className="text-sm text-zinc-400">{model.provider}</div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -1501,21 +1944,27 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                         backgroundColor: PROVIDER_STYLES[modelInfo.provider]?.bg || '#F5F5F5',
                       }}
                     >
-                      <img
-                        src={PROVIDER_STYLES[modelInfo.provider]?.logo || ''}
-                        alt={modelInfo.provider}
-                        className="h-full w-full object-cover"
-                      />
+                      {PROVIDER_STYLES[modelInfo.provider]?.logo ? (
+                        <img
+                          src={PROVIDER_STYLES[modelInfo.provider].logo}
+                          alt={modelInfo.provider}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-xs font-semibold text-zinc-600">
+                          {modelInfo.provider.charAt(0)}
+                        </span>
+                      )}
                     </div>
                     <div>
-                      <h3 className="text-xs font-semibold">{modelInfo.name}</h3>
-                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400">{modelInfo.provider}</p>
+                      <h3 className="text-sm font-semibold md:text-xs">{modelInfo.name}</h3>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 md:text-[10px]">{modelInfo.provider}</p>
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <div className="h-3 w-full animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
-                    <div className="h-3 w-5/6 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
-                    <div className="h-3 w-4/6 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
+                    <div className="h-3 w-full animate-pulse rounded bg-zinc-200 dark:bg-zinc-800 md:h-2.5" />
+                    <div className="h-3 w-5/6 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800 md:h-2.5" />
+                    <div className="h-3 w-4/6 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800 md:h-2.5" />
                   </div>
                 </div>
               );
@@ -1537,30 +1986,36 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                         backgroundColor: PROVIDER_STYLES[modelInfo.provider]?.bg || '#F5F5F5',
                       }}
                     >
-                      <img
-                        src={PROVIDER_STYLES[modelInfo.provider]?.logo || ''}
-                        alt={modelInfo.provider}
-                        className="h-full w-full object-cover"
-                      />
+                      {PROVIDER_STYLES[modelInfo.provider]?.logo ? (
+                        <img
+                          src={PROVIDER_STYLES[modelInfo.provider].logo}
+                          alt={modelInfo.provider}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-xs font-semibold text-zinc-600">
+                          {modelInfo.provider.charAt(0)}
+                        </span>
+                      )}
                     </div>
                     <div>
-                      <h3 className="text-xs font-semibold">{response.name}</h3>
-                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400">{modelInfo.provider}</p>
+                      <h3 className="text-sm font-semibold md:text-xs">{response.name}</h3>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 md:text-[10px]">{modelInfo.provider}</p>
                     </div>
                   </div>
                   {response.error ? (
                     <div className="rounded-md bg-red-50 p-3 dark:bg-red-950/20">
-                      <p className="text-xs font-medium text-red-700 dark:text-red-400">Error:</p>
-                      <p className="mt-1 text-xs text-red-600 dark:text-red-300">{response.error}</p>
+                      <p className="text-sm font-medium text-red-700 dark:text-red-400 md:text-xs">Error:</p>
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-300 md:text-xs">{response.error}</p>
                     </div>
                   ) : !response.text ? (
                     <div className="rounded-md bg-yellow-50 p-3 dark:bg-yellow-950/20">
-                      <p className="text-xs text-yellow-700 dark:text-yellow-400">No response received from this model</p>
+                      <p className="text-sm text-yellow-700 dark:text-yellow-400 md:text-xs">No response received from this model</p>
                     </div>
                   ) : (
                     <>
                       <div
-                        className={`prose prose-xs prose-zinc dark:prose-invert max-w-none ${
+                        className={`prose prose-sm prose-zinc dark:prose-invert max-w-none md:prose-xs ${
                           !isExpanded ? 'max-h-32 overflow-y-auto' : ''
                         }`}
                       >
@@ -1568,7 +2023,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                       </div>
                       <button
                         onClick={() => toggleCard(index)}
-                        className="mt-2 text-xs font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                        className="mt-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 md:text-xs"
                       >
                         {isExpanded ? '▲ Show less' : '▼ Show more'}
                       </button>

@@ -27,40 +27,26 @@ export async function POST(req: Request) {
 
   const prompt = `You are helping a professional researcher discover interesting research topics.${personalizationContext}
 
-Generate 5 compelling professional research topics that would be valuable for:
-- Financial analysts
-- Investors
-- Strategy consultants
-- Market researchers
-- Business intelligence professionals
+Generate 5 concise research topics (8-12 words each) that would be valuable for business professionals.
 
-Each topic should be:
-1. Specific and actionable (not vague)
-2. Tied to current business/market/competitive intelligence trends
-3. Based on real emerging trends, technologies, or market shifts
-4. Something that would provide strategic insights
-5. Timely and relevant to 2025
-
-Use web search to find current information about emerging trends, technologies, and market dynamics to make your research topic suggestions highly relevant and timely.
+Guidelines:
+- Keep each topic brief and clear (8-12 words maximum)
+- Focus on current trends and emerging opportunities
+- Make them specific enough to be actionable
+- Tie to real-world business, technology, or market developments
+- Ensure they're timely and relevant to 2025
 
 Format: Return ONLY a JSON array of strings, no other text. Example:
-["Deep dive into AI chip market consolidation and supply chain shifts", "Analysis of subscription fatigue impact on SaaS valuations"]`;
+["AI chip market consolidation trends", "Subscription fatigue impact on SaaS growth"]`;
 
   try {
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5',
-      max_tokens: 1000,
+      max_tokens: 500,
       messages: [
         {
           role: 'user',
           content: prompt,
-        },
-      ],
-      tools: [
-        {
-          type: 'web_search_20250305',
-          name: 'web_search',
-          max_uses: 3,
         },
       ],
     });
