@@ -960,21 +960,21 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
             <div className="mt-3 flex gap-2">
               <button
                 onClick={() => setShowGlobe(!showGlobe)}
-                className="rounded-lg border border-zinc-300 px-5 py-3 text-base text-zinc-700 transition-colors hover:border-zinc-900 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-100 dark:hover:bg-zinc-900"
+                className="rounded-full border border-zinc-300 px-5 py-3 text-base text-zinc-700 transition-colors hover:border-zinc-900 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-100 dark:hover:bg-zinc-900"
               >
                 {showGlobe ? '🌍 Hide Globe' : '🌍 Explore Globe'}
               </button>
               <button
                 onClick={handleGenerateIdeas}
                 disabled={loadingIdeas}
-                className="rounded-lg border border-zinc-300 px-5 py-3 text-base text-zinc-700 transition-colors hover:border-zinc-900 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-100 dark:hover:bg-zinc-900"
+                className="rounded-full border border-zinc-300 px-5 py-3 text-base text-zinc-700 transition-colors hover:border-zinc-900 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-100 dark:hover:bg-zinc-900"
               >
                 {loadingIdeas ? '💡 Generating...' : '💡 Generate Ideas'}
               </button>
               <div className="personalize-dropdown-container">
                 <button
                   onClick={() => setShowPersonalize(!showPersonalize)}
-                  className="rounded-lg border border-zinc-300 px-5 py-3 text-base text-zinc-700 transition-colors hover:border-zinc-900 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-100 dark:hover:bg-zinc-900"
+                  className="rounded-full border border-zinc-300 px-5 py-3 text-base text-zinc-700 transition-colors hover:border-zinc-900 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-100 dark:hover:bg-zinc-900"
                 >
                   👤 Personalize
                 </button>
@@ -1056,7 +1056,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                 <button
                   key={index}
                   onClick={() => handleSuggestionClick(idea)}
-                  className="rounded-lg border border-zinc-200 p-4 text-left transition-colors hover:border-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:border-zinc-100 dark:hover:bg-zinc-900"
+                  className="rounded-3xl border border-zinc-200 p-4 text-left transition-colors hover:border-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:border-zinc-100 dark:hover:bg-zinc-900"
                 >
                   <p className="text-sm font-medium">{idea}</p>
                 </button>
@@ -1072,7 +1072,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
 
             {loadingLocation && (
               <div className="mt-8">
-                <div className="mx-auto max-w-md rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+                <div className="mx-auto max-w-md rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
                   <div className="mb-4 text-center">
                     <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-zinc-200 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100"></div>
                   </div>
@@ -1104,7 +1104,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                 </h3>
 
                 {locationNews.length > 0 && (
-                  <div className="mb-6 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+                  <div className="mb-6 rounded-3xl border border-zinc-200 p-4 dark:border-zinc-800">
                     <h4 className="mb-3 text-sm font-medium text-zinc-600 dark:text-zinc-400">
                       Recent News
                     </h4>
@@ -1134,7 +1134,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                     <button
                       key={index}
                       onClick={() => handleSuggestionClick(suggestion)}
-                      className="rounded-lg border border-zinc-200 p-4 text-left transition-colors hover:border-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:border-zinc-100 dark:hover:bg-zinc-900"
+                      className="rounded-3xl border border-zinc-200 p-4 text-left transition-colors hover:border-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:border-zinc-100 dark:hover:bg-zinc-900"
                     >
                       <p className="text-sm font-medium">{suggestion}</p>
                     </button>
@@ -1165,7 +1165,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
               jitterStrength={6}
               jitterSpeed={3}
               sampleAverage={true}
-              className="rounded-lg"
+              className="rounded-3xl"
             />
             <p className="text-sm text-zinc-500 dark:text-zinc-400">
               Generating clarifying questions...
@@ -1249,7 +1249,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
               <textarea
                 value={editablePrompt}
                 onChange={(e) => setEditablePrompt(e.target.value)}
-                className="w-full min-h-[200px] rounded-lg border-2 border-zinc-300 bg-white p-4 font-mono text-sm outline-none transition-colors focus:border-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:border-zinc-100"
+                className="w-full min-h-[200px] rounded-3xl border-2 border-zinc-300 bg-white p-4 font-mono text-sm outline-none transition-colors focus:border-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:border-zinc-100"
                 placeholder="Edit your prompt..."
               />
             </div>
@@ -1305,7 +1305,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                     onDragStart={() => handleDragStart(modelId, true)}
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDropOnTeam(e, index)}
-                    className="relative rounded-lg"
+                    className="relative rounded-3xl"
                   >
                     <GlowingEffect
                       spread={40}
@@ -1315,7 +1315,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                       inactiveZone={0.01}
                     />
                     <div
-                      className={`group relative rounded-lg border p-2 text-left transition-colors ${
+                      className={`group relative rounded-3xl border p-2 text-left transition-colors ${
                         showBench
                           ? 'cursor-move border-zinc-300 hover:border-blue-500 dark:border-zinc-700 dark:hover:border-blue-500'
                           : 'border-zinc-200 dark:border-zinc-800'
@@ -1363,7 +1363,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                 <div
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDropOnTeam(e)}
-                  className="flex items-center justify-center rounded-lg border-2 border-dashed border-blue-300 bg-blue-50/50 p-4 transition-all hover:border-blue-500 hover:bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20 dark:hover:border-blue-600 dark:hover:bg-blue-950/40"
+                  className="flex items-center justify-center rounded-3xl border-2 border-dashed border-blue-300 bg-blue-50/50 p-4 transition-all hover:border-blue-500 hover:bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20 dark:hover:border-blue-600 dark:hover:bg-blue-950/40"
                   style={{ minHeight: '80px' }}
                 >
                   <div className="text-center">
@@ -1413,7 +1413,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
                       key={model.id}
                       draggable
                       onDragStart={() => handleDragStart(model.id, false)}
-                      className="cursor-move rounded-lg border border-zinc-200 p-3 transition-colors hover:border-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:border-zinc-100 dark:hover:bg-zinc-800"
+                      className="cursor-move rounded-3xl border border-zinc-200 p-3 transition-colors hover:border-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:border-zinc-100 dark:hover:bg-zinc-800"
                     >
                       <div className="flex items-center gap-3">
                         <div
@@ -1450,7 +1450,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
               return (
                 <div
                   key={modelId}
-                  className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800"
+                  className="rounded-3xl border border-zinc-200 p-3 dark:border-zinc-800"
                 >
                   <div className="mb-3 flex items-center gap-2">
                     <div
@@ -1486,7 +1486,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
               return (
                 <div
                   key={index}
-                  className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800"
+                  className="rounded-3xl border border-zinc-200 p-3 dark:border-zinc-800"
                 >
                   <div className="mb-3 flex items-center gap-2">
                     <div
@@ -1542,7 +1542,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
         {!loading && synthesis && (
           <div className="mt-12">
             <h2 className="mb-6 text-2xl font-bold">Synthesized Research</h2>
-            <div className="rounded-lg border-2 border-zinc-200 p-8 dark:border-zinc-800">
+            <div className="rounded-3xl border-2 border-zinc-200 p-8 dark:border-zinc-800">
               <div
                 className={`prose prose-zinc dark:prose-invert max-w-none ${
                   !synthesisExpanded ? 'max-h-64 overflow-y-auto' : ''
