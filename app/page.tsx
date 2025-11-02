@@ -1947,12 +1947,13 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
 
                       {/* Model Picker Dropdown */}
                       {showModelPickerForTask === task.id && (
-                        <div className="absolute left-0 right-0 top-full mt-2 z-9999 rounded-xl border border-zinc-700/50 bg-zinc-900/95 backdrop-blur-md p-2 shadow-xl max-h-64 overflow-y-auto">
+                        <div className="absolute left-0 right-0 top-full mt-2 z-10000 rounded-xl border border-zinc-700/50 bg-zinc-900/95 backdrop-blur-md p-2 shadow-xl max-h-64 overflow-y-auto">
                           <div className="space-y-1">
-                            {selectedModels.filter(modelId => !assignedModels.includes(modelId)).length === 0 ? (
+                            {AVAILABLE_MODELS.filter(model => !assignedModels.includes(model.id)).length === 0 ? (
                               <p className="text-xs text-zinc-600 italic p-2">All models assigned</p>
                             ) : (
-                              selectedModels.filter(modelId => !assignedModels.includes(modelId)).map(modelId => {
+                              AVAILABLE_MODELS.filter(model => !assignedModels.includes(model.id)).map(model => {
+                                const modelId = model.id;
                                 const modelInfo = getModelInfo(modelId);
                                 const providerStyle = PROVIDER_STYLES[modelInfo.provider];
                                 return (
