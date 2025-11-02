@@ -56,11 +56,12 @@ export async function POST(req: Request) {
   // Model name mapping
   const modelNameMap: Record<string, string> = {
     'anthropic/claude-sonnet-4.5': 'Claude Sonnet 4.5',
-    'anthropic/claude-opus-4': 'Claude Opus 4',
     'anthropic/claude-haiku-4.5': 'Claude Haiku 4.5',
+    'anthropic/claude-3.7-sonnet': 'Claude 3.7 Sonnet',
     'openai/gpt-5': 'GPT-5',
+    'openai/gpt-4.1': 'GPT-4.1',
     'openai/gpt-4o': 'GPT-4o',
-    'openai/o1': 'O1',
+    'openai/o3': 'O3',
     'google/gemini-2.5-pro': 'Gemini 2.5 Pro',
     'google/gemini-2.5-flash': 'Gemini 2.5 Flash',
     'xai/grok-4': 'Grok 4',
@@ -68,7 +69,8 @@ export async function POST(req: Request) {
     'xai/grok-4-fast-reasoning': 'Grok 4 Fast Reasoning',
     'xai/grok-4-fast-non-reasoning': 'Grok 4 Fast Non-Reasoning',
     'deepseek/deepseek-v3': 'DeepSeek V3',
-    'meta/llama-4-405b': 'Llama 4 405B',
+    'deepseek/deepseek-r1': 'DeepSeek R1',
+    'meta/llama-4-maverick': 'Llama 4 Maverick',
   };
 
   // Build a map of model ID to task prompt
@@ -129,8 +131,10 @@ ${result.content}
           sendEvent('model-complete', { name: modelName, text: fullText, error: null });
           return { name: modelName, text: fullText, error: null };
         } catch (error) {
-          console.error(`[${modelName}] ✗ Error:`, error);
+          console.error(`[${modelName}] ✗ Error with model ID ${modelId}:`, error);
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error(`[${modelName}] Error message:`, errorMessage);
+          console.error(`[${modelName}] Full error:`, JSON.stringify(error, null, 2));
           sendEvent('model-complete', { name: modelName, text: null, error: errorMessage });
           return { name: modelName, text: null, error: errorMessage };
         }

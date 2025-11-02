@@ -4,9 +4,20 @@ import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 
 // Dynamically import Globe to avoid SSR issues
-const GlobeComponent = dynamic(() => import('react-globe.gl'), {
-  ssr: false,
-});
+const GlobeComponent = dynamic(
+  () => import('react-globe.gl').then((mod) => mod.default),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[400px] w-full items-center justify-center rounded-lg border border-zinc-800 bg-black md:h-[600px]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-zinc-700/30 border-t-zinc-100"></div>
+          <p className="text-sm text-zinc-400">Loading globe...</p>
+        </div>
+      </div>
+    ),
+  }
+);
 
 interface LocationData {
   lat: number;
@@ -34,9 +45,24 @@ const QUICK_LOCATIONS = [
 export default function InteractiveGlobe({ onLocationSelect }: InteractiveGlobeProps) {
   const globeEl = useRef<any>(null);
   const [isClient, setIsClient] = useState(false);
+  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
 
   useEffect(() => {
     setIsClient(true);
+
+    // Set responsive dimensions
+    const updateDimensions = () => {
+      const isMobile = window.innerWidth < 768;
+      setDimensions({
+        width: Math.min(window.innerWidth * 0.95, 1200),
+        height: isMobile ? 400 : 600
+      });
+    };
+
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+
+    return () => window.removeEventListener('resize', updateDimensions);
   }, []);
 
   useEffect(() => {
@@ -107,15 +133,15 @@ export default function InteractiveGlobe({ onLocationSelect }: InteractiveGlobeP
   return (
     <div className="w-full">
       {/* Globe with integrated labels */}
-      <div className="relative h-[600px] w-full overflow-hidden rounded-lg border border-zinc-800 bg-black">
+      <div className="relative w-full overflow-hidden rounded-lg border border-zinc-800 bg-black" style={{ height: dimensions.height }}>
         <GlobeComponent
           ref={globeEl}
           globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
           bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
           backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
           onGlobeClick={handleGlobeClick}
-          width={typeof window !== 'undefined' ? window.innerWidth * 0.9 : 800}
-          height={600}
+          width={dimensions.width}
+          height={dimensions.height}
           atmosphereColor="rgba(100, 200, 255, 0.7)"
           atmosphereAltitude={0.2}
           // Add city markers with glowing effect
@@ -195,7 +221,7 @@ export default function InteractiveGlobe({ onLocationSelect }: InteractiveGlobeP
             return el;
           }}
         />
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 rounded-xl bg-gradient-to-r from-blue-600/20 to-purple-600/20 backdrop-blur-md border border-white/10 px-6 py-3 text-sm text-white shadow-2xl">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 rounded-xl bg-linear-to-r from-blue-600/20 to-purple-600/20 backdrop-blur-md border border-white/10 px-6 py-3 text-sm text-white shadow-2xl">
           <span className="font-medium">Click on cities to explore research topics</span>
         </div>
       </div>

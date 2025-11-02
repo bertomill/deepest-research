@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
+import PWAInstaller from "./components/PWAInstaller";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -20,13 +21,32 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Deepest Research",
   description: "Multi-model AI research platform for comprehensive insights",
+  manifest: "/manifest.json",
+  themeColor: "#000000",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Deepest Research",
+  },
   icons: {
     icon: [
       {
-        url: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔬</text></svg>",
-        type: "image/svg+xml",
+        url: "/assets/deepestresearch-logo-white.png",
+        type: "image/png",
       },
     ],
+    apple: [
+      {
+        url: "/assets/deepestresearch-logo-white.png",
+        type: "image/png",
+      },
+    ],
+  },
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
   },
 };
 
@@ -40,6 +60,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} antialiased`}
       >
+        <PWAInstaller />
         {children}
       </body>
     </html>

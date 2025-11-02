@@ -1,4 +1,5 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { createGateway } from '@ai-sdk/gateway';
+import { generateText } from 'ai';
 
 export const runtime = 'edge';
 
@@ -11,8 +12,8 @@ interface PersonalizationData {
 export async function POST(req: Request) {
   const { location, jobTitle, industry }: PersonalizationData = await req.json();
 
-  const anthropic = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY,
+  const gateway = createGateway({
+    apiKey: process.env.AI_GATEWAY_API_KEY,
   });
 
   // Build personalized context
@@ -40,22 +41,12 @@ Format: Return ONLY a JSON array of strings, no other text. Example:
 ["AI chip market consolidation trends", "Subscription fatigue impact on SaaS growth"]`;
 
   try {
-    const response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5',
-      max_tokens: 500,
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
+    const result = await generateText({
+      model: gateway('anthropic/claude-sonnet-4.5'),
+      prompt: prompt,
     });
 
-    // Extract text from response
-    const text = response.content
-      .filter(block => block.type === 'text')
-      .map(block => ('text' in block ? block.text : ''))
-      .join('\n');
+    const text = result.text;
 
     // Try to parse JSON from the response
     let ideas: string[] = [];

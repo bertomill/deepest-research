@@ -51,11 +51,12 @@ const PROVIDER_STYLES: Record<string, { logo: string; bg: string }> = {
 // Available models from Vercel AI Gateway
 const AVAILABLE_MODELS = [
   { id: 'anthropic/claude-sonnet-4.5', name: 'Claude Sonnet 4.5', provider: 'Anthropic' },
-  { id: 'anthropic/claude-opus-4', name: 'Claude Opus 4', provider: 'Anthropic' },
   { id: 'anthropic/claude-haiku-4.5', name: 'Claude Haiku 4.5', provider: 'Anthropic' },
+  { id: 'anthropic/claude-3.7-sonnet', name: 'Claude 3.7 Sonnet', provider: 'Anthropic' },
   { id: 'openai/gpt-5', name: 'GPT-5', provider: 'OpenAI' },
+  { id: 'openai/gpt-4.1', name: 'GPT-4.1', provider: 'OpenAI' },
   { id: 'openai/gpt-4o', name: 'GPT-4o', provider: 'OpenAI' },
-  { id: 'openai/o1', name: 'O1', provider: 'OpenAI' },
+  { id: 'openai/o3', name: 'O3', provider: 'OpenAI' },
   { id: 'google/gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google' },
   { id: 'google/gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google' },
   { id: 'xai/grok-4', name: 'Grok 4', provider: 'xAI' },
@@ -63,7 +64,8 @@ const AVAILABLE_MODELS = [
   { id: 'xai/grok-4-fast-reasoning', name: 'Grok 4 Fast Reasoning', provider: 'xAI' },
   { id: 'xai/grok-4-fast-non-reasoning', name: 'Grok 4 Fast Non-Reasoning', provider: 'xAI' },
   { id: 'deepseek/deepseek-v3', name: 'DeepSeek V3', provider: 'DeepSeek' },
-  { id: 'meta/llama-4-405b', name: 'Llama 4 405B', provider: 'Meta' },
+  { id: 'deepseek/deepseek-r1', name: 'DeepSeek R1', provider: 'DeepSeek' },
+  { id: 'meta/llama-4-maverick', name: 'Llama 4 Maverick', provider: 'Meta' },
 ];
 
 const DEFAULT_MODELS = [
@@ -992,7 +994,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden p-8">
+    <div className="relative min-h-screen overflow-hidden p-8 pb-24 pt-16 md:pb-8 md:pt-8">
       {/* Shooting Stars Background */}
       <ShootingStars className="absolute inset-0 z-0" />
       <StarsBackground className="absolute inset-0 z-0" />
@@ -1006,16 +1008,16 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
           onClose={() => setShowToast(false)}
         />
 
-      {/* Floating Navigation */}
-      <nav className="fixed left-1/2 top-4 z-50 w-[calc(100%-2rem)] max-w-fit -translate-x-1/2">
+      {/* Desktop Floating Navigation */}
+      <nav className="fixed left-1/2 top-4 z-50 hidden w-[calc(100%-2rem)] max-w-fit -translate-x-1/2 md:block">
         <div className="flex items-center justify-between gap-3 whitespace-nowrap rounded-full border border-zinc-700 bg-zinc-900/90 px-4 py-3 font-[family-name:var(--font-inter)] shadow-lg backdrop-blur-md md:gap-6 md:px-6">
           {/* Logo/Brand */}
           <div className="flex items-center gap-2">
             <span className="text-base font-bold text-zinc-100 md:text-xl">Deepest Research</span>
           </div>
 
-          {/* Desktop Menu - Hidden on mobile */}
-          <div className="hidden items-center gap-3 md:flex">
+          {/* Desktop Menu */}
+          <div className="flex items-center gap-3">
             {/* Sound Dropdown */}
             <div className="sound-dropdown-container relative">
               <button
@@ -1143,28 +1145,62 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
               </button>
             )}
           </div>
-
-          {/* Mobile Hamburger Menu - Visible on mobile only */}
-          <button
-            onClick={() => setShowMobileMenu(!showMobileMenu)}
-            className="flex items-center justify-center rounded-full p-2 text-zinc-900 transition-colors hover:bg-zinc-100 dark:text-zinc-100 dark:hover:bg-zinc-800 md:hidden"
-            aria-label="Toggle menu"
-          >
-            {showMobileMenu ? (
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            ) : (
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            )}
-          </button>
         </div>
       </nav>
 
-      {/* Mobile Menu Overlay - Full screen slide-in from top */}
-      {showMobileMenu && (
+      {/* Mobile Top Bar - Logo and User Icon */}
+      <nav className="fixed left-0 right-0 top-0 z-50 md:hidden">
+        <div className="flex items-center justify-between px-4 py-4">
+          <span className="text-lg font-bold text-zinc-100">Deepest Research</span>
+          {isAuthenticated && (
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-800 text-base font-medium text-zinc-100">
+              {userName ? userName.charAt(0).toUpperCase() : userEmail.charAt(0).toUpperCase()}
+            </div>
+          )}
+        </div>
+      </nav>
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-zinc-800 bg-black/95 backdrop-blur-xl md:hidden">
+        <div className="flex items-center justify-center gap-8 px-4 py-3">
+          <a
+            href="/"
+            className="flex flex-col items-center gap-1"
+          >
+            <svg className="h-8 w-8 text-zinc-100" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            <span className="text-xs text-zinc-400">Home</span>
+          </a>
+
+          {isAuthenticated && (
+            <>
+              <a
+                href="/research-team"
+                className="flex flex-col items-center gap-1"
+              >
+                <svg className="h-8 w-8 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                <span className="text-xs text-zinc-400">Team</span>
+              </a>
+
+              <a
+                href="/collection"
+                className="flex flex-col items-center gap-1"
+              >
+                <svg className="h-8 w-8 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                </svg>
+                <span className="text-xs text-zinc-400">Collection</span>
+              </a>
+            </>
+          )}
+        </div>
+      </nav>
+
+      {/* Mobile Menu Overlay - Removed, replaced with bottom navigation */}
+      {false && showMobileMenu && (
         <>
           {/* Backdrop */}
           <div
@@ -1365,12 +1401,6 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
           {!loading && !loadingQuestions && !showQuestions && !responses.length && !query.trim() && (
             <div className="-mx-8 mt-3 overflow-x-auto px-8 md:mx-0 md:px-0">
               <div className="flex gap-2 md:flex-wrap">
-                <button
-                  onClick={() => setShowGlobe(!showGlobe)}
-                  className="whitespace-nowrap rounded-full border border-zinc-700/50 bg-linear-to-br from-blue-500/5 to-zinc-800/80 px-6 py-3.5 text-base font-medium text-zinc-100 backdrop-blur-md transition-all hover:border-zinc-600/60 hover:from-blue-500/10"
-                >
-                  {showGlobe ? 'Hide Globe' : 'Explore Globe'}
-                </button>
                 <button
                   onClick={handleGenerateIdeas}
                   disabled={loadingIdeas}
@@ -1867,7 +1897,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
 
                       {/* Model Picker Dropdown */}
                       {showModelPickerForTask === task.id && (
-                        <div className="absolute left-0 right-0 top-full mt-2 z-50 rounded-xl border border-zinc-700/50 bg-zinc-900/95 backdrop-blur-md p-2 shadow-xl max-h-64 overflow-y-auto">
+                        <div className="absolute left-0 right-0 top-full mt-2 z-9999 rounded-xl border border-zinc-700/50 bg-zinc-900/95 backdrop-blur-md p-2 shadow-xl max-h-64 overflow-y-auto">
                           <div className="space-y-1">
                             {selectedModels.filter(modelId => !assignedModels.includes(modelId)).length === 0 ? (
                               <p className="text-xs text-zinc-600 italic p-2">All models assigned</p>
@@ -2019,8 +2049,8 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
           </div>
         )}
 
-        {/* Model selector - show during prompt preview or initial state */}
-        {!loading && !loadingQuestions && !showQuestions && !responses.length && (showPromptPreview || (!query.trim())) && (
+        {/* Model selector - show during prompt preview */}
+        {!loading && !loadingQuestions && !showQuestions && !responses.length && showPromptPreview && (
           <div className={`relative ${showBench ? 'mb-32' : 'mb-8'}`}>
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-lg font-medium text-zinc-100">
