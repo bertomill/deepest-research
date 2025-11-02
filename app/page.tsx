@@ -1835,7 +1835,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
               </p>
             </div>
 
-            <div className="mb-6 space-y-3">
+            <div className="mb-6 space-y-8">
               {researchTasks.map((task, index) => {
                 // Filter out invalid model IDs from assignments
                 const assignedModels = (taskAssignments[task.id] || []).filter(modelId =>
@@ -1947,7 +1947,7 @@ ${questions.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'No answer provided'}`).j
 
                       {/* Model Picker Dropdown */}
                       {showModelPickerForTask === task.id && (
-                        <div className="absolute left-0 right-0 top-full mt-2 z-10000 rounded-xl border border-zinc-700/50 bg-zinc-900/95 backdrop-blur-md p-2 shadow-xl max-h-64 overflow-y-auto">
+                        <div className="absolute left-0 right-0 top-full mt-2 z-10000 rounded-xl border border-zinc-700/50 bg-zinc-900/95 backdrop-blur-md p-2 shadow-xl max-h-[480px] overflow-y-auto">
                           <div className="space-y-1">
                             {AVAILABLE_MODELS.filter(model => !assignedModels.includes(model.id)).length === 0 ? (
                               <p className="text-xs text-zinc-600 italic p-2">All models assigned</p>
